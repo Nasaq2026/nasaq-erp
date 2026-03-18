@@ -2,70 +2,80 @@
 import streamlit as st
 from google import genai
 from google.genai import types
+import time
 
 def render_ai_assistant():
     st.markdown("""
-        <div style="text-align: right; padding: 20px; background: #0c1221; border-radius: 15px; border: 2px solid #38bdf8;">
+        <div style="text-align: right; padding: 20px; background: #0c1221; border-radius: 15px; border: 1px solid #38bdf8; margin-bottom: 25px;">
             <h1 style="color: #38bdf8; margin:0;">🤖 مساعد نسق الذكي</h1>
-            <p style="color: #94a3b8;">نظام Gemini 2.0 المتطور - مؤسسة نسق</p>
+            <p style="color: #94a3b8; font-size: 1.1em;">مدعوم بتقنية Gemini 1.5 Flash السريعة</p>
         </div>
     """, unsafe_allow_html=True)
 
-    # 1. جلب المفتاح من Secrets
+    # 1. إعداد العميل (Client)
     try:
+        if "GEMINI_API_KEY" not in st.secrets:
+            st.error("❌ لم يتم العثور على مفتاح API في Secrets. يرجى ضبط GEMINI_API_KEY.")
+            return
+        
         api_key = st.secrets["GEMINI_API_KEY"]
-        # تعريف العميل (Client)
         client = genai.Client(api_key=api_key)
+        # تحديد الموديل المستقر والسريع
+        MODEL_NAME = "gemini-1.5-flash"
     except Exception as e:
-        st.error("⚠️ لم يتم العثور على مفتاح API في إعدادات Secrets.")
+        st.error(f"⚠️ خطأ في تهيئة النظام: {e}")
         return
 
-    # 2. إدارة ذاكرة الشات
+    # 2. إدارة ذاكرة المحادثة
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
+    # عرض الرسائل السابقة
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # 3. محرك المحادثة
-    if prompt := st.chat_input("اسألني عن أفكار تصاميم 'نسق' أو محتوى إعلاني..."):
+    # 3. محرك المحادثة مع معالجة ذكية للضغط
+    if prompt := st.chat_input("اسألني عن أفكار تصاميم، محتوى إعلاني، أو تحليل بيانات..."):
+        # عرض رسالة المستخدم وحفظها
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            
+            # محاولة الاستدعاء مع معالجة خطأ الزحام (429)
             try:
-                # 💡 الحل هنا: نستخدم الاسم الصافي للموديل "gemini-2.0-flash" 
-                # المكتبة الجديدة بتضيف المسارات تلقائياً، فلا تكتب models/
+                # تعليمات النظام لضبط الشخصية المهنية لمؤسسة نسق
+                sys_instruct = "أنت خبير دعاية وإعلان ومساعد ذكي مدمج في نظام NASAQ ERP. أجب بلهجة مهنية سعودية/سودانية ودودة، وساعد الموظفين في أفكار اللوجوهات، خامات الطباعة، وتنسيق الألوان."
+                
                 response = client.models.generate_content(
-                    model="gemini-2.0-flash", 
+                    model=MODEL_NAME,
                     contents=prompt,
                     config=types.GenerateContentConfig(
-                        system_instruction="أنت مساعد ذكي خبير في الدعاية والإعلان وتعمل في نظام NASAQ ERP. أجب بلهجة مهنية ودودة ومختصرة.",
-                        temperature=0.8,
+                        system_instruction=sys_instruct,
+                        temperature=0.7
                     )
                 )
                 
-                if response and response.text:
-                    full_response = response.text
-                    st.markdown(full_response)
-                    st.session_state.messages.append({"role": "assistant", "content": full_response})
-                else:
-                    st.warning("⚠️ استلمت رداً فارغاً من الذكاء الاصطناعي، حاول مرة أخرى.")
+                full_response = response.text
+                message_placeholder.markdown(full_response)
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
 
             except Exception as e:
-                # معالجة ذكية للخطأ 404 أو 429
-                if "404" in str(e):
-                    st.error("❌ الموديل غير متوفر حالياً بهذا الاسم. جاري تجربة الموديل البديل...")
-                    # محاولة أخيرة بموديل 1.5 بالاسم الصافي
+                error_msg = str(e)
+                if "429" in error_msg:
+                    st.warning("⏳ يبدو أن هناك ضغطاً على الخدمة المجانية حالياً. سأحاول مرة أخرى تلقائياً بعد قليل...")
+                    time.sleep(5) # انتظار بسيط للمحاولة التلقائية
                     try:
-                        resp_alt = client.models.generate_content(model="gemini-1.5-flash", contents=prompt)
-                        st.markdown(resp_alt.text)
-                        st.session_state.messages.append({"role": "assistant", "content": resp_alt.text})
+                        # محاولة ثانية
+                        response = client.models.generate_content(model=MODEL_NAME, contents=prompt)
+                        message_placeholder.markdown(response.text)
+                        st.session_state.messages.append({"role": "assistant", "content": response.text})
                     except:
-                        st.error("⚠️ فشلت جميع محاولات الاتصال بالموديلات المتاحة.")
-                elif "429" in str(e):
-                    st.error("⏳ ضغط عالي على الخدمة المجانية. انتظر 20 ثانية وجرب تاني يا بطل.")
+                        st.error("⚠️ جوجل تطلب منك الانتظار لدقيقة واحدة بسبب كثرة الطلبات. خذ استراحة قصيرة وجرب مرة أخرى!")
+                elif "404" in error_msg:
+                    st.error("❌ الموديل غير متاح حالياً. يرجى التأكد من اسم الموديل أو تحديث المكتبة.")
                 else:
-                    st.error(f"⚠️ حدث خطأ غير متوقع: {e}")
+                    st.error(f"❌ حدث خطأ غير متوقع: {e}")
