@@ -4,7 +4,7 @@ import psycopg2
 import warnings
 from datetime import datetime
 
-# 🔴 استيراد كافة الشاشات من مجلد web_ui
+# استيراد الشاشات (تأكد من وجود الملفات في مجلد web_ui)
 from web_ui.dashboard import render_dashboard
 from web_ui.new_order import render_new_order
 from web_ui.orders import render_orders
@@ -23,25 +23,24 @@ from web_ui.installer import render_installer
 
 warnings.simplefilter('ignore', UserWarning)
 
-# إعدادات الصفحة
 st.set_page_config(page_title="NASAQ ERP - Cloud", page_icon="🌐", layout="wide")
 
-# ✅ الحل المستقر والنهائي للاتصال بسحابة Supabase (عبر الـ Pooler الموحد)
+# ✅ التعديل الجوهري: إضافة الـ Tenant ID لاسم المستخدم (مطلوب للـ Pooler)
 @st.cache_resource(ttl=60) 
 def init_connection():
     try:
-        # استخدام الـ Connection Pooler الخاص بـ AWS eu-central-1 (المنطقة الأقرب للسعودية)
         return psycopg2.connect(
             dbname="postgres", 
-            user="postgres", 
+            # 🔴 لاحظ التغيير في اسم المستخدم هنا:
+            user="postgres.jfqmcgicbdrhrtkhuwws", 
             password="Nasaq268609", 
-            host="aws-0-eu-central-1.pooler.supabase.com", # الـ Host الأكثر استقراراً للسحاب
+            host="aws-0-eu-central-1.pooler.supabase.com",
             port="5432", 
             sslmode="require",
             connect_timeout=10
         )
     except Exception as e:
-        st.error(f"❌ عذراً، نواجه مشكلة تقنية في الاتصال بالسيرفر. يرجى تحديث الصفحة. {e}")
+        st.error(f"❌ عذراً، نواجه مشكلة تقنية في الاتصال بالسيرفر: {e}")
         return None
 
 conn = init_connection()
@@ -82,9 +81,9 @@ def login_screen():
                     except Exception as e:
                         st.error(f"خطأ في قاعدة البيانات: {e}")
                 else:
-                    st.warning("⚠️ جاري محاولة تأمين الاتصال بالسيرفر.. انتظر لحظة.")
+                    st.warning("⚠️ جاري إعادة محاولة الاتصال بالسيرفر..")
 
-# --- نظام الإشعارات اللحظي ---
+# --- باقي كود الواجهة كما هو ---
 def check_notifications():
     if conn:
         try:
@@ -93,30 +92,19 @@ def check_notifications():
             cursor.execute("SELECT COUNT(*) FROM orders")
             current_count = cursor.fetchone()[0]
             if current_count > st.session_state.last_order_count:
-                diff = current_count - st.session_state.last_order_count
-                st.toast(f"🔔 تنبيه: تم إضافة {diff} طلب جديد في النظام!", icon="🚨")
+                st.toast(f"🔔 تنبيه: تم إضافة طلبات جديدة!", icon="🚨")
                 st.session_state.last_order_count = current_count
         except: pass
 
-# --- واجهة المدير (Admin) ---
 def admin_portal():
     with st.sidebar:
         st.markdown(f"### 👋 المدير: {st.session_state.emp_name}")
         menu = st.radio("القائمة الرئيسية:", [
-            "📊 لوحة القيادة", 
-            "➕ طلب تشغيل جديد", 
-            "📦 إدارة الطلبات (الورشة)", 
-            "🧾 سجل الفواتير",
-            "💰 التقارير المالية",
-            "👥 إدارة العملاء (CRM)",
-            "💬 المديونيات والواتساب",
-            "📢 التسويق وحملات التهاني",
-            "🧮 حاسبة الأسعار والهدر",
-            "👨‍🎨 إدارة المصممين",
-            "👨‍💼 إدارة الموظفين",
-            "⚙️ إعدادات الأقسام"
+            "📊 لوحة القيادة", "➕ طلب تشغيل جديد", "📦 إدارة الطلبات (الورشة)", 
+            "🧾 سجل الفواتير", "💰 التقارير المالية", "👥 إدارة العملاء (CRM)",
+            "💬 المديونيات والواتساب", "📢 التسويق وحملات التهاني", "🧮 حاسبة الأسعار والهدر",
+            "👨‍🎨 إدارة المصممين", "👨‍💼 إدارة الموظفين", "⚙️ إعدادات الأقسام"
         ])
-        st.divider()
         if st.button("🚪 تسجيل الخروج", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
@@ -134,29 +122,20 @@ def admin_portal():
     elif menu == "👨‍💼 إدارة الموظفين": render_employees(conn)
     elif menu == "⚙️ إعدادات الأقسام": render_categories(conn)
 
-# --- واجهة الموظفين ---
 def employee_portal():
     with st.sidebar:
         st.markdown(f"### 👋 {st.session_state.emp_name}")
-        st.markdown(f"**الرتبة:** {st.session_state.role}")
-        st.divider()
         if st.button("🚪 تسجيل الخروج", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
 
-    if st.session_state.role == "Designer":
-        render_designer(conn, st.session_state.emp_name)
-    elif st.session_state.role == "Technician":
-        render_technician(conn, st.session_state.emp_name)
-    elif st.session_state.role == "Installer":
-        render_installer(conn, st.session_state.emp_name)
+    if st.session_state.role == "Designer": render_designer(conn, st.session_state.emp_name)
+    elif st.session_state.role == "Technician": render_technician(conn, st.session_state.emp_name)
+    elif st.session_state.role == "Installer": render_installer(conn, st.session_state.emp_name)
 
-# --- تشغيل التطبيق ---
 if not st.session_state.logged_in:
     login_screen()
 else:
     check_notifications()
-    if st.session_state.role == "Admin":
-        admin_portal()
-    else:
-        employee_portal()
+    if st.session_state.role == "Admin": admin_portal()
+    else: employee_portal()
