@@ -50,53 +50,57 @@ def inject_creative_css():
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
 
-    /* الخط والاتجاه */
-    html, body, [data-testid="stSidebar"] *, .stMarkdown {
+    /* 1. التنسيق العام والخط */
+    html, body, .stMarkdown {
         font-family: 'Cairo', sans-serif !important;
         direction: rtl; 
         text-align: right;
     }
 
-    /* --- 🌑 القائمة الجانبية الاحترافية --- */
+    /* 2. تحسين وضوح النصوص في الصفحة الرئيسية (الخلفية البيضاء) */
+    [data-testid="stAppViewContainer"] h1, 
+    [data-testid="stAppViewContainer"] h2, 
+    [data-testid="stAppViewContainer"] h3,
+    [data-testid="stAppViewContainer"] p,
+    [data-testid="stAppViewContainer"] label,
+    [data-testid="stAppViewContainer"] .stMarkdown {
+        color: #1e293b !important; /* أسود كحلي غامق جداً للوضوح */
+    }
+
+    /* 3. 🌑 القائمة الجانبية (Dark Sidebar) */
     [data-testid="stSidebar"] {
-        background-color: #0f172a !important; /* لون داكن جداً وفخم */
+        background-color: #0f172a !important; 
         border-left: 1px solid #1e293b;
     }
 
-    /* تنسيق خيارات القائمة */
+    /* نصوص القائمة الجانبية (لازم تظل فاتحة) */
     [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
-        color: #94a3b8 !important; /* لون رمادي مزرق هادئ */
+        color: #94a3b8 !important; 
         font-weight: 500;
         padding: 12px 20px !important;
         border-radius: 12px;
         margin-bottom: 8px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 1px solid transparent;
+        transition: all 0.3s;
         font-size: 15px;
     }
 
-    /* تأثير الماوس والاختيار النشط */
     [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {
         background-color: rgba(30, 41, 59, 0.7) !important;
         color: #f8fafc !important;
-        transform: translateX(-5px); /* حركة بسيطة لليمين */
     }
 
     [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label[data-selected="true"] {
         background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%) !important;
         color: white !important;
         box-shadow: 0 10px 15px -3px rgba(14, 165, 233, 0.4);
-        font-weight: 600;
     }
 
-    /* --- 🔴 زر تسجيل الخروج العصري --- */
+    /* 4. 🔴 زر تسجيل الخروج */
     .stSidebar div.stButton > button {
         background: rgba(239, 68, 68, 0.1) !important;
         color: #ef4444 !important;
         border: 1px solid rgba(239, 68, 68, 0.2) !important;
         width: 100% !important;
-        padding: 10px !important;
-        margin-top: 25px;
         border-radius: 12px !important;
         font-weight: 600 !important;
     }
@@ -104,16 +108,22 @@ def inject_creative_css():
     .stSidebar div.stButton > button:hover {
         background: #ef4444 !important;
         color: white !important;
-        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
     }
 
-    /* إخفاء شعار Streamlit العلوي */
+    /* 5. تحسين شكل الجداول والبيانات */
+    .stTable {
+        background-color: white;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
     header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
 inject_creative_css()
 
+# ✅ الربط بقاعدة البيانات
 @st.cache_resource(ttl=60) 
 def init_connection():
     try:
@@ -143,7 +153,7 @@ def login_screen():
         show_logo(width=300)
         st.write("<br>", unsafe_allow_html=True)
         with st.form("login_form"):
-            st.markdown("<h3 style='text-align: center; color: #1e293b;'>تسجيل الدخول</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='text-align: center;'>تسجيل الدخول</h3>", unsafe_allow_html=True)
             serial = st.text_input("رقم الموظف", placeholder="A-1001")
             password = st.text_input("كلمة المرور", type="password")
             if st.form_submit_button("دخول آمن", use_container_width=True):
@@ -168,18 +178,17 @@ def admin_portal():
         st.markdown(f"<p style='text-align: center; color: #64748b; font-size: 13px;'>{datetime.now().strftime('%Y-%m-%d | %H:%M')}</p>", unsafe_allow_html=True)
         st.divider()
         
-        # --- القائمة بالأيقونات الجديدة "الحضارية" ---
         menu_options = {
-            "📊 لوحة القيادة": "📊",
-            "➕ طلب تشغيل جديد": "➕",
-            "📦 إدارة الورشة": "📦", 
-            "🧾 الفواتير والمالية": "🧾",
-            "👥 إدارة العملاء": "👥",
-            "💬 تواصل وواتساب": "💬",
-            "📢 حملات تسويقية": "📢",
-            "👨‍💼 إدارة الفريق": "👨‍💼",
-            "🧮 حاسبة التكاليف": "🧮",
-            "⚙️ إعدادات النظام": "⚙️"
+            "📊 لوحة القيادة": "dashboard",
+            "➕ طلب تشغيل جديد": "new_order",
+            "📦 إدارة الورشة": "orders", 
+            "🧾 الفواتير والمالية": "accounts",
+            "👥 إدارة العملاء": "clients",
+            "💬 تواصل وواتساب": "communication",
+            "📢 حملات تسويقية": "marketing",
+            "👨‍💼 إدارة الفريق": "employees",
+            "🧮 حاسبة التكاليف": "calculator",
+            "⚙️ إعدادات النظام": "categories"
         }
         
         menu = st.radio("القائمة الرئيسية:", list(menu_options.keys()))
@@ -189,7 +198,7 @@ def admin_portal():
             st.session_state.logged_in = False
             st.rerun()
 
-    # توجيه الصفحات
+    # تنفيذ الشاشات
     if menu == "📊 لوحة القيادة": render_dashboard(conn)
     elif menu == "➕ طلب تشغيل جديد": render_new_order(conn)
     elif menu == "📦 إدارة الورشة": render_orders(conn)
