@@ -4,14 +4,14 @@ import urllib.parse
 import pandas as pd
 
 def render_marketing(conn):
-    # إعداد الذاكرة المؤقتة لحفظ حالة الإرسال
+    # إعداد الذاكرة المؤقتة لحفظ حالة الإرسال في الجلسة الحالية
     if "sent_clients" not in st.session_state:
         st.session_state.sent_clients = []
 
     st.markdown("""
         <div style="text-align: right;">
-            <h1 style="color: #1e293b;">📢 التسويق وحملات التهاني</h1>
-            <p style="color: #64748b;">أرسل رسائل واتساب مخصصة لعملائك باسمائهم لتعزيز الولاء ونشر العروض الجديدة.</p>
+            <h1 style="color: #1e293b;">📢 التسويق وحملات التهاني (Web CRM)</h1>
+            <p style="color: #64748b;">أرسل رسائل واتساب مخصصة لعملائك باسمهم لتعزيز الولاء ونشر العروض الجديدة.</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -22,11 +22,11 @@ def render_marketing(conn):
         # ==========================================
         # 1. إعداد رسالة الحملة
         # ==========================================
-        st.markdown("### ✨ تجهيز رسالة الحملة")
+        st.markdown("### ✨ تجهيز رسالة الحملة / التهنئة")
         
         st.markdown("""
-            <div style='background-color: rgba(245, 158, 11, 0.1); padding: 10px; border-right: 5px solid #f59e0b; border-radius: 5px; margin-bottom: 15px;'>
-                <p style='color: #d97706; font-size: 14px; margin: 0;'>💡 <b>نصيحة:</b> استخدم كلمة <b>{اسم_العميل}</b> في الرسالة، وسيتم استبدالها تلقائياً باسم كل عميل!</p>
+            <div style='background-color: rgba(245, 158, 11, 0.1); padding: 10px; border-right: 5px solid #f59e0b; border-radius: 8px; margin-bottom: 15px;'>
+                <p style='color: #d97706; font-size: 14px; margin: 0;'>💡 <b>نصيحة:</b> استخدم كلمة <b>{اسم_العميل}</b> في الرسالة، وسيقوم النظام باستبدالها تلقائياً باسم كل عميل!</p>
             </div>
         """, unsafe_allow_html=True)
         
@@ -41,7 +41,7 @@ def render_marketing(conn):
         st.divider()
 
         # ==========================================
-        # 2. طابور الإرسال
+        # 2. طابور الإرسال (الجدول التفاعلي)
         # ==========================================
         st.markdown("### 👥 طابور الإرسال الذكي")
         
@@ -49,14 +49,14 @@ def render_marketing(conn):
         clients = cursor.fetchall()
         
         if not clients:
-            st.warning("⚠️ لا يوجد عملاء مسجلين بأرقام جوال حتى الآن!")
+            st.warning("⚠️ لا يوجد عملاء مسجلين بأرقام جوال بعد!")
             return
 
-        st.info(f"📋 القائمة تحتوي على ({len(clients)}) عميل جاهز للإرسال.")
+        st.info(f"📋 تم سحب قائمة بـ ({len(clients)}) عميل جاهز للإرسال.")
 
         # عرض العملاء
         for idx, (name, phone) in enumerate(clients):
-            c_name = name if name else "عميلنا العزيز"
+            c_name = name or "عميلنا العزيز"
             c_phone = phone.strip()
             
             # تنسيق الرقم الدولي للسعودية
@@ -71,7 +71,7 @@ def render_marketing(conn):
             encoded_msg = urllib.parse.quote(personalized_msg)
             wa_link = f"https://wa.me/{c_phone}?text={encoded_msg}"
             
-            # تصميم كرت العميل الاحترافي
+            # تصميم الصف التفاعلي
             with st.container():
                 col1, col2, col3 = st.columns([3, 2, 2])
                 
@@ -87,12 +87,12 @@ def render_marketing(conn):
                 with col3:
                     # زر الواتساب العصري
                     st.markdown(f"""
-                        <a href='{wa_link}' target='_blank' style='display: block; text-align: center; background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: white; padding: 8px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 13px; box-shadow: 0 4px 10px rgba(37, 211, 102, 0.2);'>
+                        <a href='{wa_link}' target='_blank' style='display: block; text-align: center; background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 13px; box-shadow: 0 4px 10px rgba(37, 211, 102, 0.2);'>
                             💬 إرسال واتساب
                         </a>
                     """, unsafe_allow_html=True)
                     
-                    # زر تأكيد الحالة
+                    # زر تأكيد الحالة (تحديث width إلى stretch لعام 2026)
                     if phone not in st.session_state.sent_clients:
                         if st.button("تأكيد ✔️", key=f"btn_confirm_{idx}", width="stretch"):
                             st.session_state.sent_clients.append(phone)
@@ -101,4 +101,4 @@ def render_marketing(conn):
                 st.markdown("<hr style='margin: 10px 0; border-top: 1px solid #e2e8f0; opacity: 0.3;'>", unsafe_allow_html=True)
 
     except Exception as e:
-        st.error(f"❌ حدث خطأ في واجهة التسويق: {e}")
+        st.error(f"❌ حدث خطأ أثناء تحميل بيانات التسويق: {e}")
