@@ -1,13 +1,13 @@
 # web_ui/ai_assistant.py
 import streamlit as st
-import google.generativeai as genai # الطريقة المستقرة والمجربة
+import google.generativeai as genai
 import time
 
 def render_ai_assistant():
     st.markdown("""
         <div style="text-align: right; padding: 20px; background: #0c1221; border-radius: 15px; border: 1px solid #38bdf8; margin-bottom: 25px;">
             <h1 style="color: #38bdf8; margin:0;">🤖 مساعد نسق الذكي</h1>
-            <p style="color: #94a3b8; font-size: 1.1em;">نظام Gemini المستقر - مؤسسة نسق</p>
+            <p style="color: #94a3b8; font-size: 1.1em;">نظام الربط الذكي - مؤسسة نسق</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -15,12 +15,20 @@ def render_ai_assistant():
     try:
         api_key = st.secrets["GEMINI_API_KEY"]
         genai.configure(api_key=api_key)
-        # استخدام الموديل الأكثر استقراراً للحسابات المجانية
-        model = genai.GenerativeModel('gemini-1.5-flash')
-    except Exception:
-        st.warning("⚠️ يرجى ضبط GEMINI_API_KEY في إعدادات Secrets.")
+        
+        # 💡 الحل السحري: البحث عن الموديل المتاح في حسابك حالياً
+        if "working_model" not in st.session_state:
+            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            # نختار أول موديل Flash متاح لأنه الأسرع للمجاني
+            flash_models = [m for m in available_models if "flash" in m.lower()]
+            st.session_state.working_model = flash_models[0] if flash_models else available_models[0]
+            
+        model = genai.GenerativeModel(st.session_state.working_model)
+    except Exception as e:
+        st.error(f"⚠️ خطأ في الاتصال بجوجل: {e}")
         return
 
+    # 2. إدارة الذاكرة
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
@@ -28,34 +36,29 @@ def render_ai_assistant():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("بمَ يمكنني مساعدتك في 'نسق' اليوم؟"):
+    # 3. محرك المحادثة
+    if prompt := st.chat_input("اسألني أي شيء عن 'نسق'..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            
-            # محاولة الاستدعاء مع معالجة الزحام
             try:
-                # إضافة سياق العمل لمؤسسة نسق
-                context = f"أنت خبير دعاية وإعلان في نظام NASAQ ERP. الموظف يسألك: {prompt}"
-                response = model.generate_content(context)
+                # إرسال السؤال مع السياق المهني لنسق
+                full_prompt = f"أنت مساعد نظام NASAQ ERP للدعاية والإعلان. العميل يسألك: {prompt}"
+                response = model.generate_content(full_prompt)
                 
-                full_response = response.text
-                message_placeholder.markdown(full_response)
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
-
+                if response.text:
+                    st.markdown(response.text)
+                    st.session_state.messages.append({"role": "assistant", "content": response.text})
+                else:
+                    st.warning("⚠️ جوجل لم ترجع رداً، جرب صياغة أخرى.")
+            
             except Exception as e:
                 error_str = str(e)
                 if "429" in error_str:
-                    st.warning("⏳ جوجل مضغوطة حالياً.. ثواني وبحاول تاني...")
-                    time.sleep(10) # انتظار أطول قليلاً لتخطي الزحام
-                    try:
-                        response = model.generate_content(prompt)
-                        message_placeholder.markdown(response.text)
-                        st.session_state.messages.append({"role": "assistant", "content": response.text})
-                    except:
-                        st.error("⚠️ الحصة المجانية مؤقتاً بالحد الأقصى. جرب تسأل بعد دقيقة يا بطل.")
+                    st.error("⏳ ضغط عالي.. انتظر 30 ثانية وجرب تاني يا بطل.")
+                elif "400" in error_str:
+                    st.error("❌ الطلب غير صحيح أو الموديل يحتاج تحديث.")
                 else:
-                    st.error(f"❌ حدث خطأ غير متوقع: {e}")
+                    st.error(f"⚠️ عذراً، حدث خطأ: {e}")
