@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import re
 
-# ⏱️ أزمنة العمليات القياسية (بالساعات)
+# ⏱️ أزمنة العمليات القياسية (بالساعات) لعام 2026
 OPERATION_TIMES = {
     'تصميم لوجو': 5.0,
     'تصميم بوستر': 2.0,
@@ -19,8 +19,8 @@ OPERATION_TIMES = {
 def render_new_order(conn):
     st.markdown("""
         <div style="text-align: right;">
-            <h1 style="color: #1e293b;">➕ إضافة طلب تشغيل (نظام ذكي)</h1>
-            <p style="color: #64748b;">يقوم النظام بحساب موعد التسليم تلقائياً بناءً على حجم العمل وضغط الفريق.</p>
+            <h1 style="color: #1e293b; margin-bottom: 0;">➕ إضافة طلب تشغيل (نظام ذكي)</h1>
+            <p style="color: #64748b;">نظام جدولة تلقائي يحسب موعد التسليم بناءً على ضغط الورشة الحالي.</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -28,7 +28,7 @@ def render_new_order(conn):
         conn.rollback()
         cursor = conn.cursor()
 
-        # جلب البيانات الأساسية للقوائم
+        # جلب القوائم الفنية
         cursor.execute("SELECT name FROM designers")
         designers_list = [r[0] for r in cursor.fetchall()] or ["بدون مصمم"]
         
@@ -39,7 +39,7 @@ def render_new_order(conn):
         installers_list = [r[0] for r in cursor.fetchall()] or ["بدون فريق تركيب"]
 
         # ==========================================
-        # 1. بيانات العميل (بحث ذكي)
+        # 1. بيانات العميل (محرك البحث الذكي)
         # ==========================================
         st.markdown("### 👤 بيانات العميل")
         
@@ -59,7 +59,7 @@ def render_new_order(conn):
             if data[5] >= 3:
                 st.info(f"🌟 عميل مميز (VIP) - إجمالي طلباته السابقة: {data[5]}")
             else:
-                st.success("✅ عميل مسجل مسبقاً في النظام")
+                st.success("✅ عميل مسجل مسبقاً في قاعدة البيانات")
 
         col_c1, col_c2, col_c3 = st.columns(3)
         c_name = col_c1.text_input("اسم العميل *", value=pre_name)
@@ -73,30 +73,30 @@ def render_new_order(conn):
         st.divider()
 
         # ==========================================
-        # 2. تفاصيل العمل
+        # 2. تفاصيل العمل الفني
         # ==========================================
         st.markdown("### 🛠️ تفاصيل العمل والمقاسات")
         col_t1, col_t2 = st.columns(2)
-        category = col_t1.selectbox("القسم *", list(OPERATION_TIMES.keys())[:-1])
-        mat_type = col_t2.text_input("نوع الخامة")
+        category = col_t1.selectbox("القسم الإنشائي *", list(OPERATION_TIMES.keys())[:-1])
+        mat_type = col_t2.text_input("نوع الخامة المستخدمة")
         
-        dims = st.text_input("المقاسات (مثال: 2*3 - سيتم حساب الوقت بناءً عليها)")
-        details = st.text_area("التفاصيل والملاحظات")
+        dims = st.text_input("المقاسات (مثال: 2*3 متر)")
+        details = st.text_area("تفاصيل التصميم وملاحظات الإنتاج")
 
         st.divider()
 
         # ==========================================
-        # 3. إسناد المهام والموعد المتوقع (Smart Calculation)
+        # 3. محرك حساب الجدولة (Smart Scheduling)
         # ==========================================
         st.markdown("### 👥 إسناد المهام والموعد المتوقع")
         col_m1, col_m2, col_m3 = st.columns(3)
-        des = col_m1.selectbox("المصمم", designers_list)
-        tec = col_m2.selectbox("الفني", tech_list)
+        des = col_m1.selectbox("المصمم المكلف", designers_list)
+        tec = col_m2.selectbox("الفني المكلف", tech_list)
         inst = col_m3.selectbox("فريق التركيب", installers_list)
         
-        req_install = st.checkbox("يتطلب تركيب ميداني")
+        req_install = st.checkbox("يتطلب تركيب ميداني (Site Installation)")
 
-        # 🧠 خوارزمية حساب الوقت
+        # 🧠 خوارزمية حساب الوقت التلقائية
         base_time = OPERATION_TIMES.get(category, OPERATION_TIMES['افتراضي'])
         if "ستيكر" in category or "بنر" in category:
             try:
@@ -113,34 +113,34 @@ def render_new_order(conn):
         backlog_hours = float(res[0]) if res and res[0] else 0.0
 
         total_wait_hours = backlog_hours + estimated_hours
-        days_to_add = int(total_wait_hours // 8)
+        days_to_add = int(total_wait_hours // 8) # افتراض 8 ساعات عمل يومياً
         hours_to_add = total_wait_hours % 8
         expected_delivery = datetime.now() + timedelta(days=days_to_add, hours=hours_to_add)
         formatted_date = expected_delivery.strftime("%Y-%m-%d | %I:%M %p")
 
+        # تنبيهات مرئية للمدير عن حالة الضغط
         if total_wait_hours <= 8:
-            st.success(f"🟢 التسليم المتوقع: اليوم أو غداً ({formatted_date})")
+            st.success(f"🟢 التسليم المتوقع: متاح خلال 24 ساعة ({formatted_date})")
         elif total_wait_hours <= 24:
-            st.warning(f"🟡 التسليم المتوقع: خلال 3 أيام تقريباً ({formatted_date})")
+            st.warning(f"🟡 التسليم المتوقع: خلال 3 أيام عمل ({formatted_date})")
         else:
-            st.error(f"🔴 طابور مزدحم! التسليم المتوقع: ({formatted_date})")
+            st.error(f"🔴 تنبيه: ضغط عمل مرتفع! الموعد المتوقع: ({formatted_date})")
 
         st.divider()
 
         # ==========================================
-        # 4. المبالغ والحفظ
+        # 4. الحسابات المالية والحفظ
         # ==========================================
         st.markdown("### 💰 المبالغ المالية")
         col_f1, col_f2, col_f3 = st.columns(3)
-        price = col_f1.number_input("السعر (بدون ضريبة) *", min_value=0.0, step=10.0)
-        cost = col_f2.number_input("التكلفة (المتوقعة)", min_value=0.0, step=10.0)
-        paid = col_f3.number_input("المدفوع مقدماً", min_value=0.0, step=10.0)
+        price = col_f1.number_input("السعر المتفق عليه (بدون ضريبة) *", min_value=0.0, step=10.0)
+        cost = col_f2.number_input("التكلفة المباشرة (خامات + عمالة)", min_value=0.0, step=10.0)
+        paid = col_f3.number_input("المبلغ المدفوع كعربون", min_value=0.0, step=10.0)
 
-        # زر الحفظ المحدث تماشياً مع 2026
-        save_btn = st.button("💾 حفظ الطلب وإصدار أمر التشغيل", width="stretch")
-
-        if save_btn:
+        # ✅ زر الحفظ المحدث لمعايير Streamlit 2026
+        if st.button("💾 حفظ الطلب وإصدار أمر التشغيل", width="stretch"):
             if c_name and c_phone and price > 0:
+                # تحديث سجل العميل
                 if selected_client != "✨ إضافة عميل جديد (اكتب البيانات بالأسفل)":
                     cursor.execute("UPDATE clients SET orders_count = orders_count + 1 WHERE phone=%s", (c_phone,))
                 else:
@@ -149,11 +149,13 @@ def render_new_order(conn):
                         VALUES (%s, %s, %s, %s, %s, 1) ON CONFLICT (phone) DO NOTHING
                     """, (c_name, c_phone, c_tax, c_cr, c_addr))
 
+                # حسابات الضريبة والربح
                 vat = price * 0.15
                 total = price + vat
                 profit = price - cost
                 wo_sn = f"WO-{datetime.now().strftime('%m%d%H%M')}"
 
+                # الحفظ النهائي في قاعدة البيانات
                 sql = """
                     INSERT INTO orders (client_name, phone, price, vat, total_with_vat, paid, cost, profit, status, 
                     current_stage, category, details, designer, technician, installer, requires_install, 
@@ -164,10 +166,11 @@ def render_new_order(conn):
                 conn.commit()
                 
                 st.session_state.last_order_count += 1
-                st.success(f"🚀 تم حفظ الطلب بنجاح برقم {wo_sn}!")
+                st.success(f"🚀 تم حفظ الطلب بنجاح برقم {wo_sn}! تم إخطار فريق العمل.")
                 st.balloons()
+                st.rerun()
             else:
-                st.error("⚠️ يرجى إدخال اسم العميل، رقم الجوال، والسعر على الأقل.")
+                st.error("⚠️ بيانات ناقصة: يرجى التأكد من كتابة اسم العميل، الجوال، وسعر البيع.")
 
     except Exception as e:
-        st.error(f"حدث خطأ في النظام: {e}")
+        st.error(f"❌ خطأ تقني في النظام: {e}")
