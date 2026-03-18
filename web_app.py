@@ -4,7 +4,7 @@ import psycopg2
 import warnings
 from datetime import datetime
 
-# 🔴 استيراد كافة الشاشات من مجلد web_ui
+# استيراد الشاشات من مجلد web_ui
 from web_ui.dashboard import render_dashboard
 from web_ui.new_order import render_new_order
 from web_ui.orders import render_orders
@@ -23,16 +23,14 @@ from web_ui.installer import render_installer
 
 warnings.simplefilter('ignore', UserWarning)
 
-# إعدادات الصفحة
 st.set_page_config(page_title="NASAQ ERP - Cloud", page_icon="🌐", layout="wide")
 
-# ✅ الإعدادات النهائية للربط السحابي مع سيرفر الشرق الأوسط (البحرين)
+# ✅ الاتصال النهائي والصحيح 100% بالرابط المخصص لمشروعك
 @st.cache_resource(ttl=60) 
 def init_connection():
     try:
-        # استخدام رابط الـ URI المباشر لتخطي أي مشاكل في العناوين
-        # تم ضبط المنطقة على me-south-1 (الشرق الأوسط) والبورت على 6543
-        db_uri = "postgresql://postgres.jfqmcgicbdrhrtkhuwws:Nasaq268609@aws-0-me-south-1.pooler.supabase.com:6543/postgres"
+        # الرابط الرسمي الخاص بك مدمج به كلمة المرور
+        db_uri = "postgresql://postgres.jfqmcgicbdrhrtkhuwws:Nasaq268609@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres"
         
         return psycopg2.connect(db_uri, sslmode="require", connect_timeout=10)
     except Exception as e:
@@ -97,20 +95,11 @@ def admin_portal():
     with st.sidebar:
         st.markdown(f"### 👋 المدير: {st.session_state.emp_name}")
         menu = st.radio("القائمة الرئيسية:", [
-            "📊 لوحة القيادة", 
-            "➕ طلب تشغيل جديد", 
-            "📦 إدارة الطلبات (الورشة)", 
-            "🧾 سجل الفواتير",
-            "💰 التقارير المالية",
-            "👥 إدارة العملاء (CRM)",
-            "💬 المديونيات والواتساب",
-            "📢 التسويق وحملات التهاني",
-            "🧮 حاسبة الأسعار والهدر",
-            "👨‍🎨 إدارة المصممين",
-            "👨‍💼 إدارة الموظفين",
-            "⚙️ إعدادات الأقسام"
+            "📊 لوحة القيادة", "➕ طلب تشغيل جديد", "📦 إدارة الطلبات (الورشة)", 
+            "🧾 سجل الفواتير", "💰 التقارير المالية", "👥 إدارة العملاء (CRM)",
+            "💬 المديونيات والواتساب", "📢 التسويق وحملات التهاني", "🧮 حاسبة الأسعار والهدر",
+            "👨‍🎨 إدارة المصممين", "👨‍💼 إدارة الموظفين", "⚙️ إعدادات الأقسام"
         ])
-        st.divider()
         if st.button("🚪 تسجيل الخروج", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
@@ -132,24 +121,18 @@ def admin_portal():
 def employee_portal():
     with st.sidebar:
         st.markdown(f"### 👋 {st.session_state.emp_name}")
-        st.divider()
         if st.button("🚪 تسجيل الخروج", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
 
-    if st.session_state.role == "Designer":
-        render_designer(conn, st.session_state.emp_name)
-    elif st.session_state.role == "Technician":
-        render_technician(conn, st.session_state.emp_name)
-    elif st.session_state.role == "Installer":
-        render_installer(conn, st.session_state.emp_name)
+    if st.session_state.role == "Designer": render_designer(conn, st.session_state.emp_name)
+    elif st.session_state.role == "Technician": render_technician(conn, st.session_state.emp_name)
+    elif st.session_state.role == "Installer": render_installer(conn, st.session_state.emp_name)
 
 # --- تشغيل التطبيق ---
 if not st.session_state.logged_in:
     login_screen()
 else:
     check_notifications()
-    if st.session_state.role == "Admin":
-        admin_portal()
-    else:
-        employee_portal()
+    if st.session_state.role == "Admin": admin_portal()
+    else: employee_portal()
