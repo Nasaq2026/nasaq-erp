@@ -15,15 +15,12 @@ from web_ui.clients import render_clients
 from web_ui.communication import render_communication
 from web_ui.marketing import render_marketing
 from web_ui.employees import render_employees
-from web_ui.designers import render_designers
 from web_ui.categories import render_categories
 from web_ui.calculator import render_calculator
-from web_ui.invoices import render_invoices
 from web_ui.designer import render_designer
 from web_ui.technician import render_technician
 from web_ui.installer import render_installer
 
-# كتم التحذيرات مؤقتاً في المتصفح
 warnings.simplefilter('ignore', UserWarning)
 
 st.set_page_config(
@@ -51,55 +48,76 @@ def inject_creative_css():
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
 
+    /* 1. الخط العام واتجاه الصفحة */
     html, body, .stMarkdown {
         font-family: 'Cairo', sans-serif !important;
         direction: rtl; 
         text-align: right;
     }
 
+    /* 2. تحسين وضوح الصفحة الرئيسية */
     [data-testid="stAppViewContainer"] h1, 
     [data-testid="stAppViewContainer"] h2, 
     [data-testid="stAppViewContainer"] h3,
     [data-testid="stAppViewContainer"] p,
-    [data-testid="stAppViewContainer"] label,
-    [data-testid="stAppViewContainer"] .stMarkdown {
-        color: #1e293b !important; 
+    [data-testid="stAppViewContainer"] label {
+        color: #1e293b !important; /* لون كحلي غامق جداً للوضوح */
     }
 
+    /* 3. 🌑 القائمة الجانبية (Dark Sidebar) */
     [data-testid="stSidebar"] {
         background-color: #0f172a !important; 
         border-left: 1px solid #1e293b;
     }
 
+    /* --- ✨ نصوص القائمة (أبيض ناصع) --- */
     [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
-        color: #94a3b8 !important; 
-        font-weight: 500;
+        color: #ffffff !important; /* أبيض ناصع بدل الرمادي */
+        font-weight: 600;
         padding: 12px 20px !important;
-        border-radius: 12px;
-        margin-bottom: 8px;
-        transition: all 0.3s;
+        border-radius: 10px;
+        margin-bottom: 5px;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         font-size: 15px;
+        border: 1px solid transparent;
     }
 
+    /* --- 💡 تأثير الإضاءة والحركة عند مرور الماوس --- */
+    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {
+        background-color: rgba(56, 189, 248, 0.15) !important; /* خلفية سماوية شفافة */
+        color: #38bdf8 !important; /* تغيير النص للسماوي المضيء */
+        transform: translateX(-8px); /* حركة لليمين بسيطة */
+        box-shadow: -4px 0px 15px rgba(56, 189, 248, 0.3); /* توهج جانبي */
+        border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    /* --- 🎯 الاختيار النشط (Active) --- */
     [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label[data-selected="true"] {
         background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%) !important;
         color: white !important;
+        box-shadow: 0 10px 15px -3px rgba(14, 165, 233, 0.5);
+        transform: scale(1.02);
     }
 
+    /* 4. 🔴 زر تسجيل الخروج العصري */
     .stSidebar div.stButton > button {
-        background: rgba(239, 68, 68, 0.1) !important;
+        background: rgba(239, 68, 68, 0.05) !important;
         color: #ef4444 !important;
-        border: 1px solid rgba(239, 68, 68, 0.2) !important;
+        border: 1px solid rgba(239, 68, 68, 0.3) !important;
         width: 100% !important;
         border-radius: 12px !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
+        margin-top: 30px;
+        transition: 0.3s;
     }
     
     .stSidebar div.stButton > button:hover {
         background: #ef4444 !important;
         color: white !important;
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
     }
 
+    /* إخفاء الهيدر الافتراضي */
     header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
@@ -124,7 +142,6 @@ if "logged_in" not in st.session_state:
 
 def show_logo(width=200):
     if LOGO_IMG:
-        # تحديث width ليكون stretch تماشياً مع 2026
         st.image(LOGO_IMG, width="stretch" if width > 250 else width)
     else:
         st.markdown("<h2 style='color: #38bdf8; text-align: center;'>NASAQ ERP</h2>", unsafe_allow_html=True)
@@ -136,10 +153,9 @@ def login_screen():
         show_logo(width=300)
         st.write("<br>", unsafe_allow_html=True)
         with st.form("login_form"):
-            st.markdown("<h3 style='text-align: center;'>تسجيل الدخول</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='text-align: center;'>دخول النظام</h3>", unsafe_allow_html=True)
             serial = st.text_input("رقم الموظف", placeholder="A-1001")
             password = st.text_input("كلمة المرور", type="password")
-            # تحديث الزر لاستخدام width='stretch'
             if st.form_submit_button("دخول آمن", width="stretch"):
                 if conn:
                     try:
@@ -152,14 +168,13 @@ def login_screen():
                             st.session_state.emp_name = user[0]
                             st.session_state.role = user[1]
                             st.rerun()
-                        else:
-                            st.error("بيانات غير صحيحة")
-                    except: st.error("خطأ تقني")
+                        else: st.error("بيانات الدخول غير صحيحة")
+                    except: st.error("خطأ في الخادم")
 
 def admin_portal():
     with st.sidebar:
         show_logo(width=220)
-        st.markdown(f"<p style='text-align: center; color: #64748b; font-size: 13px;'>{datetime.now().strftime('%Y-%m-%d | %H:%M')}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; color: #94a3b8; font-size: 13px;'>{datetime.now().strftime('%Y-%m-%d | %H:%M')}</p>", unsafe_allow_html=True)
         st.divider()
         
         menu_options = [
@@ -171,11 +186,11 @@ def admin_portal():
         menu = st.radio("القائمة الرئيسية:", menu_options)
         
         st.divider()
-        # تحديث الزر لاستخدام width='stretch'
         if st.button("🚪 تسجيل الخروج", width="stretch"):
             st.session_state.logged_in = False
             st.rerun()
 
+    # التوجيه
     if menu == "📊 لوحة القيادة": render_dashboard(conn)
     elif menu == "➕ طلب تشغيل جديد": render_new_order(conn)
     elif menu == "📦 إدارة الورشة": render_orders(conn)
