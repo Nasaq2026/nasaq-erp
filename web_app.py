@@ -32,10 +32,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ✨ دالة قراءة اللوجو (تم التحديث بمسار صارم)
 @st.cache_data
 def load_logo():
     try:
-        return Image.open("logo.png")
+        # تحديد المسار الفعلي للملف داخل السيرفر
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        logo_path = os.path.join(current_dir, "logo.png")
+        
+        if os.path.exists(logo_path):
+            return Image.open(logo_path)
+        else:
+            return None
     except Exception as e:
         return None
 
@@ -137,10 +145,9 @@ if "logged_in" not in st.session_state:
 
 def show_logo():
     if LOGO_IMG:
-        # ✅ تم التحديث إلى width="stretch"
         st.image(LOGO_IMG, width="stretch")
     else:
-        st.caption("⚠️ مسار اللوجو غير صحيح، تأكد أن الملف اسمه logo.png وحروفه صغيرة.")
+        st.caption("⚠️ مسار اللوجو غير صحيح، تأكد أن الملف اسمه logo.png وحروفه صغيرة وموجود بجوار web_app.py.")
 
 def login_screen():
     st.write("<br><br>", unsafe_allow_html=True)
@@ -154,8 +161,6 @@ def login_screen():
             serial = st.text_input("👤 الرقم الوظيفي", placeholder="أدخل رقمك الوظيفي")
             password = st.text_input("🔑 كلمة المرور", type="password", placeholder="أدخل كلمة المرور")
             st.write("<br>", unsafe_allow_html=True)
-            
-            # ✅ تم التحديث إلى width="stretch"
             if st.form_submit_button("دخول آمن", width="stretch"):
                 if conn:
                     try:
@@ -202,7 +207,6 @@ def admin_portal():
             "👨‍🎨 إدارة المصممين", "👨‍💼 إدارة الموظفين", "⚙️ إعدادات الأقسام"
         ])
         st.divider()
-        # ✅ تم التحديث إلى width="stretch"
         if st.button("🚪 تسجيل الخروج", width="stretch"):
             st.session_state.logged_in = False
             st.rerun()
@@ -227,7 +231,6 @@ def employee_portal():
         st.markdown(f"#### 👋 مرحباً: **{st.session_state.emp_name}**")
         st.markdown(f"**القسم:** {st.session_state.role}")
         st.divider()
-        # ✅ تم التحديث إلى width="stretch"
         if st.button("🚪 تسجيل الخروج", width="stretch"):
             st.session_state.logged_in = False
             st.rerun()
