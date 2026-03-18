@@ -26,25 +26,21 @@ from web_ui.installer import render_installer
 warnings.simplefilter('ignore', UserWarning)
 
 st.set_page_config(
-    page_title="نسق ERP | بوابة الإدارة السحابية", 
-    page_icon="🌐", 
+    page_title="نسق ERP | إدارة متكاملة", 
+    page_icon="🎯", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# ✨ دالة قراءة اللوجو (تم التحديث بمسار صارم)
 @st.cache_data
 def load_logo():
     try:
-        # تحديد المسار الفعلي للملف داخل السيرفر
         current_dir = os.path.dirname(os.path.abspath(__file__))
         logo_path = os.path.join(current_dir, "logo.png")
-        
         if os.path.exists(logo_path):
             return Image.open(logo_path)
-        else:
-            return None
-    except Exception as e:
+        return None
+    except:
         return None
 
 LOGO_IMG = load_logo()
@@ -54,72 +50,64 @@ def inject_creative_css():
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
 
-    html, body, [class*="css"], .stMarkdown, div[data-testid="stSidebar"] * {
+    /* الخط والاتجاه */
+    html, body, [data-testid="stSidebar"] *, .stMarkdown {
         font-family: 'Cairo', sans-serif !important;
         direction: rtl; 
         text-align: right;
     }
 
-    div.stButton > button:first-child {
-        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-        color: white;
-        border-radius: 50px; 
-        border: none;
-        padding: 10px 24px;
-        font-weight: 600;
-        font-size: 16px;
-        transition: all 0.3s ease-in-out;
-        box-shadow: 0 4px 6px rgba(14, 165, 233, 0.2);
-    }
-    
-    div.stButton > button:first-child:hover {
-        background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 0 8px 15px rgba(14, 165, 233, 0.4);
-    }
-
-    .stTextInput>div>div>input, .stNumberInput>div>div>input, .stTextArea>div>div>textarea {
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        background-color: #ffffff;
-        padding: 12px;
-        transition: all 0.2s;
-    }
-    .stTextInput>div>div>input:focus {
-        border-color: #0ea5e9;
-        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
-    }
-
+    /* --- 🌑 القائمة الجانبية الاحترافية --- */
     [data-testid="stSidebar"] {
-        background-color: #F8FAFC;
-        border-left: 1px solid #e2e8f0;
-    }
-    
-    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
-        color: #1e293b;
-        font-weight: 600;
-        padding: 10px;
-        border-radius: 8px;
-        transition: background 0.2s;
-        margin-bottom: 5px;
-    }
-    
-    [data-testid="metric-container"] {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
-        padding: 15px;
-        border-radius: 16px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        background-color: #0f172a !important; /* لون داكن جداً وفخم */
+        border-left: 1px solid #1e293b;
     }
 
-    [data-testid="stForm"] {
-        background-color: #ffffff;
-        padding: 30px;
-        border-radius: 20px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    /* تنسيق خيارات القائمة */
+    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
+        color: #94a3b8 !important; /* لون رمادي مزرق هادئ */
+        font-weight: 500;
+        padding: 12px 20px !important;
+        border-radius: 12px;
+        margin-bottom: 8px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid transparent;
+        font-size: 15px;
+    }
+
+    /* تأثير الماوس والاختيار النشط */
+    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {
+        background-color: rgba(30, 41, 59, 0.7) !important;
+        color: #f8fafc !important;
+        transform: translateX(-5px); /* حركة بسيطة لليمين */
+    }
+
+    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label[data-selected="true"] {
+        background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%) !important;
+        color: white !important;
+        box-shadow: 0 10px 15px -3px rgba(14, 165, 233, 0.4);
+        font-weight: 600;
+    }
+
+    /* --- 🔴 زر تسجيل الخروج العصري --- */
+    .stSidebar div.stButton > button {
+        background: rgba(239, 68, 68, 0.1) !important;
+        color: #ef4444 !important;
+        border: 1px solid rgba(239, 68, 68, 0.2) !important;
+        width: 100% !important;
+        padding: 10px !important;
+        margin-top: 25px;
+        border-radius: 12px !important;
+        font-weight: 600 !important;
     }
     
+    .stSidebar div.stButton > button:hover {
+        background: #ef4444 !important;
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
+
+    /* إخفاء شعار Streamlit العلوي */
     header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
@@ -132,7 +120,7 @@ def init_connection():
         db_uri = "postgresql://postgres.jfqmcgicbdrhrtkhuwws:Nasaq268609@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres"
         return psycopg2.connect(db_uri, sslmode="require", connect_timeout=10)
     except Exception as e:
-        st.error(f"❌ عذراً، هناك مشكلة في الاتصال: {e}")
+        st.error(f"❌ خطأ في الاتصال: {e}")
         return None
 
 conn = init_connection()
@@ -141,27 +129,24 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.emp_name = ""
     st.session_state.role = ""
-    st.session_state.last_order_count = 0
 
-def show_logo():
+def show_logo(width=200):
     if LOGO_IMG:
-        st.image(LOGO_IMG, width="stretch")
+        st.image(LOGO_IMG, width=width)
     else:
-        st.caption("⚠️ مسار اللوجو غير صحيح، تأكد أن الملف اسمه logo.png وحروفه صغيرة وموجود بجوار web_app.py.")
+        st.markdown("<h2 style='color: #38bdf8; text-align: center;'>NASAQ ERP</h2>", unsafe_allow_html=True)
 
 def login_screen():
     st.write("<br><br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        show_logo() 
+        show_logo(width=300)
         st.write("<br>", unsafe_allow_html=True)
         with st.form("login_form"):
-            st.markdown("<h3 style='text-align: center; color: #1e293b;'>تسجيل الدخول - بوابة الإدارة</h3>", unsafe_allow_html=True)
-            st.write("<br>", unsafe_allow_html=True)
-            serial = st.text_input("👤 الرقم الوظيفي", placeholder="أدخل رقمك الوظيفي")
-            password = st.text_input("🔑 كلمة المرور", type="password", placeholder="أدخل كلمة المرور")
-            st.write("<br>", unsafe_allow_html=True)
-            if st.form_submit_button("دخول آمن", width="stretch"):
+            st.markdown("<h3 style='text-align: center; color: #1e293b;'>تسجيل الدخول</h3>", unsafe_allow_html=True)
+            serial = st.text_input("رقم الموظف", placeholder="A-1001")
+            password = st.text_input("كلمة المرور", type="password")
+            if st.form_submit_button("دخول آمن", use_container_width=True):
                 if conn:
                     try:
                         conn.rollback()
@@ -172,69 +157,61 @@ def login_screen():
                             st.session_state.logged_in = True
                             st.session_state.emp_name = user[0]
                             st.session_state.role = user[1]
-                            cursor.execute("SELECT COUNT(*) FROM orders")
-                            st.session_state.last_order_count = cursor.fetchone()[0]
                             st.rerun()
                         else:
-                            st.error("❌ بيانات الدخول غير صحيحة")
-                    except Exception as e:
-                        st.error(f"خطأ في قاعدة البيانات: {e}")
-                else:
-                    st.warning("⚠️ جاري تأمين الاتصال بالسيرفر..")
-
-def check_notifications():
-    if conn:
-        try:
-            conn.rollback()
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM orders")
-            current_count = cursor.fetchone()[0]
-            if current_count > st.session_state.last_order_count:
-                st.toast(f"🔔 تنبيه: تم إضافة طلبات جديدة!", icon="🚨")
-                st.session_state.last_order_count = current_count
-        except: pass
+                            st.error("بيانات غير صحيحة")
+                    except: st.error("خطأ تقني")
 
 def admin_portal():
     with st.sidebar:
-        show_logo() 
+        show_logo(width=220)
+        st.markdown(f"<p style='text-align: center; color: #64748b; font-size: 13px;'>{datetime.now().strftime('%Y-%m-%d | %H:%M')}</p>", unsafe_allow_html=True)
         st.divider()
-        st.markdown(f"#### 👋 مرحباً يا مدير: **{st.session_state.emp_name}**")
+        
+        # --- القائمة بالأيقونات الجديدة "الحضارية" ---
+        menu_options = {
+            "📊 لوحة القيادة": "📊",
+            "➕ طلب تشغيل جديد": "➕",
+            "📦 إدارة الورشة": "📦", 
+            "🧾 الفواتير والمالية": "🧾",
+            "👥 إدارة العملاء": "👥",
+            "💬 تواصل وواتساب": "💬",
+            "📢 حملات تسويقية": "📢",
+            "👨‍💼 إدارة الفريق": "👨‍💼",
+            "🧮 حاسبة التكاليف": "🧮",
+            "⚙️ إعدادات النظام": "⚙️"
+        }
+        
+        menu = st.radio("القائمة الرئيسية:", list(menu_options.keys()))
+        
         st.divider()
-        menu = st.radio("القائمة الرئيسية:", [
-            "📊 لوحة القيادة", "➕ طلب تشغيل جديد", "📦 إدارة الطلبات (الورشة)", 
-            "🧾 سجل الفواتير", "💰 التقارير المالية", "👥 إدارة العملاء (CRM)",
-            "💬 المديونيات والواتساب", "📢 التسويق وحملات التهاني", "🧮 حاسبة الأسعار والهدر",
-            "👨‍🎨 إدارة المصممين", "👨‍💼 إدارة الموظفين", "⚙️ إعدادات الأقسام"
-        ])
-        st.divider()
-        if st.button("🚪 تسجيل الخروج", width="stretch"):
+        if st.button("🚪 تسجيل الخروج"):
             st.session_state.logged_in = False
             st.rerun()
 
+    # توجيه الصفحات
     if menu == "📊 لوحة القيادة": render_dashboard(conn)
     elif menu == "➕ طلب تشغيل جديد": render_new_order(conn)
-    elif menu == "📦 إدارة الطلبات (الورشة)": render_orders(conn)
-    elif menu == "🧾 سجل الفواتير": render_invoices(conn)
-    elif menu == "💰 التقارير المالية": render_accounts(conn)
-    elif menu == "👥 إدارة العملاء (CRM)": render_clients(conn)
-    elif menu == "💬 المديونيات والواتساب": render_communication(conn)
-    elif menu == "📢 التسويق وحملات التهاني": render_marketing(conn)
-    elif menu == "🧮 حاسبة الأسعار والهدر": render_calculator(conn)
-    elif menu == "👨‍🎨 إدارة المصممين": render_designers(conn)
-    elif menu == "👨‍💼 إدارة الموظفين": render_employees(conn)
-    elif menu == "⚙️ إعدادات الأقسام": render_categories(conn)
+    elif menu == "📦 إدارة الورشة": render_orders(conn)
+    elif menu == "🧾 الفواتير والمالية": render_accounts(conn)
+    elif menu == "👥 إدارة العملاء": render_clients(conn)
+    elif menu == "💬 تواصل وواتساب": render_communication(conn)
+    elif menu == "📢 حملات تسويقية": render_marketing(conn)
+    elif menu == "👨‍💼 إدارة الفريق": render_employees(conn)
+    elif menu == "🧮 حاسبة التكاليف": render_calculator(conn)
+    elif menu == "⚙️ إعدادات النظام": render_categories(conn)
 
 def employee_portal():
     with st.sidebar:
-        show_logo()
+        show_logo(width=180)
         st.divider()
-        st.markdown(f"#### 👋 مرحباً: **{st.session_state.emp_name}**")
-        st.markdown(f"**القسم:** {st.session_state.role}")
+        st.markdown(f"#### 👋 {st.session_state.emp_name}")
+        st.caption(f"قسم: {st.session_state.role}")
         st.divider()
-        if st.button("🚪 تسجيل الخروج", width="stretch"):
+        if st.button("🚪 تسجيل الخروج"):
             st.session_state.logged_in = False
             st.rerun()
-
+    
     if st.session_state.role == "Designer": render_designer(conn, st.session_state.emp_name)
     elif st.session_state.role == "Technician": render_technician(conn, st.session_state.emp_name)
     elif st.session_state.role == "Installer": render_installer(conn, st.session_state.emp_name)
@@ -242,6 +219,5 @@ def employee_portal():
 if not st.session_state.logged_in:
     login_screen()
 else:
-    check_notifications()
     if st.session_state.role == "Admin": admin_portal()
     else: employee_portal()
