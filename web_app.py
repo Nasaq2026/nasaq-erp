@@ -3,7 +3,8 @@ import streamlit as st
 import psycopg2
 import warnings
 from datetime import datetime
-import os 
+import os
+from PIL import Image
 
 # استيراد الشاشات من مجلد web_ui
 from web_ui.dashboard import render_dashboard
@@ -24,7 +25,6 @@ from web_ui.installer import render_installer
 
 warnings.simplefilter('ignore', UserWarning)
 
-# ✅ إعدادات الصفحة الاحترافية 
 st.set_page_config(
     page_title="نسق ERP | بوابة الإدارة السحابية", 
     page_icon="🌐", 
@@ -32,14 +32,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 🔗 استدعاء اللوجو الرسمي الخاص بك
-LOGO_URL = "logo.png" 
+@st.cache_data
+def load_logo():
+    try:
+        return Image.open("logo.png")
+    except Exception as e:
+        return None
 
-# ✨ دالة حقن الـ CSS الاحترافي (تجميل الواجهة بالكامل)
+LOGO_IMG = load_logo()
+
 def inject_creative_css():
     st.markdown("""
     <style>
-    /* --- استيراد خط عربي احترافي (Cairo) --- */
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
 
     html, body, [class*="css"], .stMarkdown, div[data-testid="stSidebar"] * {
@@ -48,11 +52,10 @@ def inject_creative_css():
         text-align: right;
     }
 
-    /* --- تجميل الأزرار الرئيسية --- */
     div.stButton > button:first-child {
         background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
         color: white;
-        border-radius: 50px; /* حواف دائرية بالكامل */
+        border-radius: 50px; 
         border: none;
         padding: 10px 24px;
         font-weight: 600;
@@ -67,7 +70,6 @@ def inject_creative_css():
         box-shadow: 0 8px 15px rgba(14, 165, 233, 0.4);
     }
 
-    /* --- تجميل خانات الإدخال --- */
     .stTextInput>div>div>input, .stNumberInput>div>div>input, .stTextArea>div>div>textarea {
         border-radius: 12px;
         border: 1px solid #e2e8f0;
@@ -80,7 +82,6 @@ def inject_creative_css():
         box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
     }
 
-    /* --- تجميل الشريط الجانبي --- */
     [data-testid="stSidebar"] {
         background-color: #F8FAFC;
         border-left: 1px solid #e2e8f0;
@@ -95,7 +96,6 @@ def inject_creative_css():
         margin-bottom: 5px;
     }
     
-    /* --- تجميل كروت البيانات --- */
     [data-testid="metric-container"] {
         background-color: #ffffff;
         border: 1px solid #e2e8f0;
@@ -104,7 +104,6 @@ def inject_creative_css():
         box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
 
-    /* --- تجميل صندوق تسجيل الدخول --- */
     [data-testid="stForm"] {
         background-color: #ffffff;
         padding: 30px;
@@ -113,15 +112,12 @@ def inject_creative_css():
         box-shadow: 0 10px 25px rgba(0,0,0,0.05);
     }
     
-    /* إخفاء شريط Streamlit العلوي */
     header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# تشغيل التحسينات
 inject_creative_css()
 
-# ✅ الاتصال بقاعدة البيانات السحابية
 @st.cache_resource(ttl=60) 
 def init_connection():
     try:
@@ -133,37 +129,34 @@ def init_connection():
 
 conn = init_connection()
 
-# إدارة الجلسة
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.emp_name = ""
     st.session_state.role = ""
     st.session_state.last_order_count = 0
 
-# --- شاشة تسجيل الدخول ---
+def show_logo():
+    if LOGO_IMG:
+        # ✅ تم التحديث إلى width="stretch"
+        st.image(LOGO_IMG, width="stretch")
+    else:
+        st.caption("⚠️ مسار اللوجو غير صحيح، تأكد أن الملف اسمه logo.png وحروفه صغيرة.")
+
 def login_screen():
     st.write("<br><br>", unsafe_allow_html=True)
-    
     col1, col2, col3 = st.columns([1, 1.2, 1])
-    
     with col2:
-        # 🖼️ عرض اللوجو الخاص بكم
-        try:
-            st.image(LOGO_URL, use_container_width=True)
-        except:
-            pass # في حالة تأخر تحميل الصورة
-            
+        show_logo() 
         st.write("<br>", unsafe_allow_html=True)
-        
         with st.form("login_form"):
             st.markdown("<h3 style='text-align: center; color: #1e293b;'>تسجيل الدخول - بوابة الإدارة</h3>", unsafe_allow_html=True)
             st.write("<br>", unsafe_allow_html=True)
-            
             serial = st.text_input("👤 الرقم الوظيفي", placeholder="أدخل رقمك الوظيفي")
             password = st.text_input("🔑 كلمة المرور", type="password", placeholder="أدخل كلمة المرور")
             st.write("<br>", unsafe_allow_html=True)
             
-            if st.form_submit_button("دخول آمن", use_container_width=True):
+            # ✅ تم التحديث إلى width="stretch"
+            if st.form_submit_button("دخول آمن", width="stretch"):
                 if conn:
                     try:
                         conn.rollback()
@@ -184,7 +177,6 @@ def login_screen():
                 else:
                     st.warning("⚠️ جاري تأمين الاتصال بالسيرفر..")
 
-# --- الإشعارات ---
 def check_notifications():
     if conn:
         try:
@@ -197,15 +189,9 @@ def check_notifications():
                 st.session_state.last_order_count = current_count
         except: pass
 
-# --- واجهة المدير ---
 def admin_portal():
     with st.sidebar:
-        # 🖼️ عرض اللوجو
-        try:
-            st.image(LOGO_URL, use_container_width=True)
-        except:
-            pass
-            
+        show_logo() 
         st.divider()
         st.markdown(f"#### 👋 مرحباً يا مدير: **{st.session_state.emp_name}**")
         st.divider()
@@ -216,7 +202,8 @@ def admin_portal():
             "👨‍🎨 إدارة المصممين", "👨‍💼 إدارة الموظفين", "⚙️ إعدادات الأقسام"
         ])
         st.divider()
-        if st.button("🚪 تسجيل الخروج", use_container_width=True):
+        # ✅ تم التحديث إلى width="stretch"
+        if st.button("🚪 تسجيل الخروج", width="stretch"):
             st.session_state.logged_in = False
             st.rerun()
 
@@ -233,20 +220,15 @@ def admin_portal():
     elif menu == "👨‍💼 إدارة الموظفين": render_employees(conn)
     elif menu == "⚙️ إعدادات الأقسام": render_categories(conn)
 
-# --- واجهة الموظفين ---
 def employee_portal():
     with st.sidebar:
-        # 🖼️ عرض اللوجو
-        try:
-            st.image(LOGO_URL, use_container_width=True)
-        except:
-            pass
-            
+        show_logo()
         st.divider()
         st.markdown(f"#### 👋 مرحباً: **{st.session_state.emp_name}**")
         st.markdown(f"**القسم:** {st.session_state.role}")
         st.divider()
-        if st.button("🚪 تسجيل الخروج", use_container_width=True):
+        # ✅ تم التحديث إلى width="stretch"
+        if st.button("🚪 تسجيل الخروج", width="stretch"):
             st.session_state.logged_in = False
             st.rerun()
 
@@ -254,7 +236,6 @@ def employee_portal():
     elif st.session_state.role == "Technician": render_technician(conn, st.session_state.emp_name)
     elif st.session_state.role == "Installer": render_installer(conn, st.session_state.emp_name)
 
-# --- تشغيل التطبيق ---
 if not st.session_state.logged_in:
     login_screen()
 else:
