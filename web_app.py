@@ -4,7 +4,7 @@ import psycopg2
 import warnings
 from datetime import datetime
 
-# استيراد الشاشات (تأكد من وجود الملفات في مجلد web_ui)
+# استيراد الشاشات من مجلد web_ui
 from web_ui.dashboard import render_dashboard
 from web_ui.new_order import render_new_order
 from web_ui.orders import render_orders
@@ -23,15 +23,16 @@ from web_ui.installer import render_installer
 
 warnings.simplefilter('ignore', UserWarning)
 
+# إعدادات الصفحة
 st.set_page_config(page_title="NASAQ ERP - Cloud", page_icon="🌐", layout="wide")
 
-# ✅ التعديل الجوهري: إضافة الـ Tenant ID لاسم المستخدم (مطلوب للـ Pooler)
+# ✅ التعديل الجوهري: ربط اسم المستخدم بالـ Tenant ID الخاص بمشروعك
 @st.cache_resource(ttl=60) 
 def init_connection():
     try:
         return psycopg2.connect(
             dbname="postgres", 
-            # 🔴 لاحظ التغيير في اسم المستخدم هنا:
+            # 🔴 لاحظ التغيير هنا (إضافة الـ ID بعد كلمة postgres ونقطة)
             user="postgres.jfqmcgicbdrhrtkhuwws", 
             password="Nasaq268609", 
             host="aws-0-eu-central-1.pooler.supabase.com",
@@ -81,9 +82,9 @@ def login_screen():
                     except Exception as e:
                         st.error(f"خطأ في قاعدة البيانات: {e}")
                 else:
-                    st.warning("⚠️ جاري إعادة محاولة الاتصال بالسيرفر..")
+                    st.warning("⚠️ جاري محاولة تأمين الاتصال بالسيرفر..")
 
-# --- باقي كود الواجهة كما هو ---
+# --- نظام الإشعارات اللحظي ---
 def check_notifications():
     if conn:
         try:
@@ -92,10 +93,11 @@ def check_notifications():
             cursor.execute("SELECT COUNT(*) FROM orders")
             current_count = cursor.fetchone()[0]
             if current_count > st.session_state.last_order_count:
-                st.toast(f"🔔 تنبيه: تم إضافة طلبات جديدة!", icon="🚨")
+                st.toast(f"🔔 تنبيه: تم إضافة طلبات جديدة في النظام!", icon="🚨")
                 st.session_state.last_order_count = current_count
         except: pass
 
+# --- واجهة المدير (Admin) ---
 def admin_portal():
     with st.sidebar:
         st.markdown(f"### 👋 المدير: {st.session_state.emp_name}")
@@ -105,6 +107,7 @@ def admin_portal():
             "💬 المديونيات والواتساب", "📢 التسويق وحملات التهاني", "🧮 حاسبة الأسعار والهدر",
             "👨‍🎨 إدارة المصممين", "👨‍💼 إدارة الموظفين", "⚙️ إعدادات الأقسام"
         ])
+        st.divider()
         if st.button("🚪 تسجيل الخروج", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
@@ -122,9 +125,11 @@ def admin_portal():
     elif menu == "👨‍💼 إدارة الموظفين": render_employees(conn)
     elif menu == "⚙️ إعدادات الأقسام": render_categories(conn)
 
+# --- واجهة الموظفين ---
 def employee_portal():
     with st.sidebar:
         st.markdown(f"### 👋 {st.session_state.emp_name}")
+        st.divider()
         if st.button("🚪 تسجيل الخروج", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
@@ -133,6 +138,7 @@ def employee_portal():
     elif st.session_state.role == "Technician": render_technician(conn, st.session_state.emp_name)
     elif st.session_state.role == "Installer": render_installer(conn, st.session_state.emp_name)
 
+# --- تشغيل التطبيق ---
 if not st.session_state.logged_in:
     login_screen()
 else:
