@@ -23,6 +23,7 @@ from web_ui.designer import render_designer
 from web_ui.technician import render_technician
 from web_ui.installer import render_installer
 
+# كتم التحذيرات مؤقتاً في المتصفح
 warnings.simplefilter('ignore', UserWarning)
 
 st.set_page_config(
@@ -50,30 +51,26 @@ def inject_creative_css():
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
 
-    /* 1. التنسيق العام والخط */
     html, body, .stMarkdown {
         font-family: 'Cairo', sans-serif !important;
         direction: rtl; 
         text-align: right;
     }
 
-    /* 2. تحسين وضوح النصوص في الصفحة الرئيسية (الخلفية البيضاء) */
     [data-testid="stAppViewContainer"] h1, 
     [data-testid="stAppViewContainer"] h2, 
     [data-testid="stAppViewContainer"] h3,
     [data-testid="stAppViewContainer"] p,
     [data-testid="stAppViewContainer"] label,
     [data-testid="stAppViewContainer"] .stMarkdown {
-        color: #1e293b !important; /* أسود كحلي غامق جداً للوضوح */
+        color: #1e293b !important; 
     }
 
-    /* 3. 🌑 القائمة الجانبية (Dark Sidebar) */
     [data-testid="stSidebar"] {
         background-color: #0f172a !important; 
         border-left: 1px solid #1e293b;
     }
 
-    /* نصوص القائمة الجانبية (لازم تظل فاتحة) */
     [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
         color: #94a3b8 !important; 
         font-weight: 500;
@@ -84,18 +81,11 @@ def inject_creative_css():
         font-size: 15px;
     }
 
-    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {
-        background-color: rgba(30, 41, 59, 0.7) !important;
-        color: #f8fafc !important;
-    }
-
     [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label[data-selected="true"] {
         background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%) !important;
         color: white !important;
-        box-shadow: 0 10px 15px -3px rgba(14, 165, 233, 0.4);
     }
 
-    /* 4. 🔴 زر تسجيل الخروج */
     .stSidebar div.stButton > button {
         background: rgba(239, 68, 68, 0.1) !important;
         color: #ef4444 !important;
@@ -110,20 +100,12 @@ def inject_creative_css():
         color: white !important;
     }
 
-    /* 5. تحسين شكل الجداول والبيانات */
-    .stTable {
-        background-color: white;
-        border-radius: 10px;
-        overflow: hidden;
-    }
-
     header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
 inject_creative_css()
 
-# ✅ الربط بقاعدة البيانات
 @st.cache_resource(ttl=60) 
 def init_connection():
     try:
@@ -142,7 +124,8 @@ if "logged_in" not in st.session_state:
 
 def show_logo(width=200):
     if LOGO_IMG:
-        st.image(LOGO_IMG, width=width)
+        # تحديث width ليكون stretch تماشياً مع 2026
+        st.image(LOGO_IMG, width="stretch" if width > 250 else width)
     else:
         st.markdown("<h2 style='color: #38bdf8; text-align: center;'>NASAQ ERP</h2>", unsafe_allow_html=True)
 
@@ -156,7 +139,8 @@ def login_screen():
             st.markdown("<h3 style='text-align: center;'>تسجيل الدخول</h3>", unsafe_allow_html=True)
             serial = st.text_input("رقم الموظف", placeholder="A-1001")
             password = st.text_input("كلمة المرور", type="password")
-            if st.form_submit_button("دخول آمن", use_container_width=True):
+            # تحديث الزر لاستخدام width='stretch'
+            if st.form_submit_button("دخول آمن", width="stretch"):
                 if conn:
                     try:
                         conn.rollback()
@@ -178,27 +162,20 @@ def admin_portal():
         st.markdown(f"<p style='text-align: center; color: #64748b; font-size: 13px;'>{datetime.now().strftime('%Y-%m-%d | %H:%M')}</p>", unsafe_allow_html=True)
         st.divider()
         
-        menu_options = {
-            "📊 لوحة القيادة": "dashboard",
-            "➕ طلب تشغيل جديد": "new_order",
-            "📦 إدارة الورشة": "orders", 
-            "🧾 الفواتير والمالية": "accounts",
-            "👥 إدارة العملاء": "clients",
-            "💬 تواصل وواتساب": "communication",
-            "📢 حملات تسويقية": "marketing",
-            "👨‍💼 إدارة الفريق": "employees",
-            "🧮 حاسبة التكاليف": "calculator",
-            "⚙️ إعدادات النظام": "categories"
-        }
+        menu_options = [
+            "📊 لوحة القيادة", "➕ طلب تشغيل جديد", "📦 إدارة الورشة", 
+            "🧾 الفواتير والمالية", "👥 إدارة العملاء", "💬 تواصل وواتساب",
+            "📢 حملات تسويقية", "👨‍💼 إدارة الفريق", "🧮 حاسبة التكاليف", "⚙️ إعدادات النظام"
+        ]
         
-        menu = st.radio("القائمة الرئيسية:", list(menu_options.keys()))
+        menu = st.radio("القائمة الرئيسية:", menu_options)
         
         st.divider()
-        if st.button("🚪 تسجيل الخروج"):
+        # تحديث الزر لاستخدام width='stretch'
+        if st.button("🚪 تسجيل الخروج", width="stretch"):
             st.session_state.logged_in = False
             st.rerun()
 
-    # تنفيذ الشاشات
     if menu == "📊 لوحة القيادة": render_dashboard(conn)
     elif menu == "➕ طلب تشغيل جديد": render_new_order(conn)
     elif menu == "📦 إدارة الورشة": render_orders(conn)
@@ -217,7 +194,7 @@ def employee_portal():
         st.markdown(f"#### 👋 {st.session_state.emp_name}")
         st.caption(f"قسم: {st.session_state.role}")
         st.divider()
-        if st.button("🚪 تسجيل الخروج"):
+        if st.button("🚪 تسجيل الخروج", width="stretch"):
             st.session_state.logged_in = False
             st.rerun()
     
