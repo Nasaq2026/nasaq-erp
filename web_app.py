@@ -4,7 +4,14 @@ import psycopg2
 import warnings
 from datetime import datetime
 import os
+import sys # 👈 أضفنا هذا المكتبة
 from PIL import Image
+
+# --- 💡 الخطوة السحرية للحل الجذري ---
+# إضافة مسار المجلد الحالي لمسارات بايثون لضمان رؤية web_ui
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
 
 # 1. تهيئة الإعدادات الأساسية
 warnings.simplefilter('ignore', UserWarning)
@@ -17,7 +24,6 @@ st.set_page_config(
 )
 
 # 2. استيراد الشاشات من مجلد web_ui
-# ملاحظة: تأكد أن مجلد web_ui يحتوي على ملف __init__.py (حتى لو فارغ) ليعتبره بايثون حزمة
 try:
     from web_ui.dashboard import render_dashboard
     from web_ui.new_order import render_new_order
@@ -33,14 +39,15 @@ try:
     from web_ui.technician import render_technician
     from web_ui.installer import render_installer
 except ImportError as e:
-    st.error(f"❌ فشل استيراد أحد ملفات الواجهة: {e}")
-    st.info("تأكد أن جميع الملفات موجودة داخل مجلد web_ui وأن أسماءها تطابق الكود تماماً (Small Letters).")
+    st.error(f"❌ فشل استيراد ملفات النظام: {e}")
+    st.info("تأكد من وجود ملف فارغ باسم __init__.py داخل مجلد web_ui")
+    st.stop() # إيقاف التشغيل في حال فشل الاستيراد لمنع أخطاء أخرى
 
+# [بقية الكود الخاص بك كما هو بدون تغيير...]
 # 3. تحميل اللوجو
 @st.cache_data
 def load_logo():
     try:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
         logo_path = os.path.join(current_dir, "logo.png")
         if os.path.exists(logo_path):
             return Image.open(logo_path)
@@ -50,52 +57,32 @@ def load_logo():
 
 LOGO_IMG = load_logo()
 
-# 4. حقن الـ CSS المطور (تصميم زجاجي + نصوص بيضاء ناصعة)
+# 4. حقن الـ CSS
 def inject_creative_css():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-
     html, body, [data-testid="stSidebar"] *, .stMarkdown {
         font-family: 'Cairo', sans-serif !important;
         direction: rtl; 
         text-align: right;
     }
-
-    [data-testid="stSidebar"] {
-        background: #0c1221 !important;
-        border-left: 1px solid rgba(56, 189, 248, 0.1);
-    }
-
-    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label div[data-testid="stRadioButtonCustomObject"] {
-        display: none !important;
-    }
-
-    /* نصوص القائمة الجانبية باللون الأبيض الصريح */
-    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] p {
-        color: #ffffff !important;
-        font-size: 16px !important;
-        font-weight: 600 !important;
-    }
-
+    [data-testid="stSidebar"] { background: #0c1221 !important; border-left: 1px solid rgba(56, 189, 248, 0.1); }
+    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label div[data-testid="stRadioButtonCustomObject"] { display: none !important; }
+    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] p { color: #ffffff !important; font-size: 16px !important; font-weight: 600 !important; }
     [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
         background-color: rgba(255, 255, 255, 0.03) !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
         padding: 14px 20px !important;
         border-radius: 12px !important;
         margin-bottom: 12px !important;
-        display: flex;
-        align-items: center;
-        transition: 0.3s;
-        width: 100% !important;
+        display: flex; align-items: center; transition: 0.3s; width: 100% !important;
     }
-
     [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label[data-selected="true"] {
         background: rgba(56, 189, 248, 0.15) !important;
         border-color: #38bdf8 !important;
         box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
     }
-
     header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
@@ -121,13 +108,13 @@ def init_connection():
 
 conn = init_connection()
 
+# [بقية الدوال admin_portal و employee_portal و login_screen تبقى كما هي تماماً]
 def show_logo(width=200):
     if LOGO_IMG:
         st.image(LOGO_IMG, width=width)
     else:
         st.markdown("<h2 style='color: #38bdf8; text-align: center;'>NASAQ ERP</h2>", unsafe_allow_html=True)
 
-# 7. شاشة الدخول
 def login_screen():
     st.write("<br><br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.2, 1])
@@ -153,7 +140,6 @@ def login_screen():
                     except Exception as e:
                         st.error(f"خطأ في الاستعلام: {e}")
 
-# 8. بوابات النظام (Admin / Employees)
 def admin_portal():
     with st.sidebar:
         show_logo(width=220)
@@ -169,7 +155,6 @@ def admin_portal():
             st.session_state.logged_in = False
             st.rerun()
 
-    # التوجيه بناءً على الخيار
     if menu == "📊 لوحة القيادة": render_dashboard(conn)
     elif menu == "➕ طلب تشغيل جديد": render_new_order(conn)
     elif menu == "📦 إدارة الورشة": render_orders(conn)
@@ -194,7 +179,6 @@ def employee_portal():
     elif st.session_state.role == "Technician": render_technician(conn, st.session_state.emp_name)
     elif st.session_state.role == "Installer": render_installer(conn, st.session_state.emp_name)
 
-# 9. التشغيل
 if not st.session_state.logged_in:
     login_screen()
 else:
