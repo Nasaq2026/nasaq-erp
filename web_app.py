@@ -32,10 +32,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 🔗 رابط اللوجو (حالياً صورة مؤقتة شيك، ولما تجهز اللوجو بتاعكم هنحط رابطه هنا)
-LOGO_URL = "https://via.placeholder.com/400x120.png?text=NASAQ+ERP" 
+# 🔗 استدعاء اللوجو الرسمي الخاص بك
+LOGO_URL = "logo.png" 
 
-# ✨ دالة حقن الـ CSS الاحترافي (الفخامة كلها هنا)
+# ✨ دالة حقن الـ CSS الاحترافي (تجميل الواجهة بالكامل)
 def inject_creative_css():
     st.markdown("""
     <style>
@@ -121,7 +121,7 @@ def inject_creative_css():
 # تشغيل التحسينات
 inject_creative_css()
 
-# ✅ الاتصال بقاعدة البيانات
+# ✅ الاتصال بقاعدة البيانات السحابية
 @st.cache_resource(ttl=60) 
 def init_connection():
     try:
@@ -147,8 +147,12 @@ def login_screen():
     col1, col2, col3 = st.columns([1, 1.2, 1])
     
     with col2:
-        # 🖼️ عرض اللوجو
-        st.image(LOGO_URL, use_container_width=True)
+        # 🖼️ عرض اللوجو الخاص بكم
+        try:
+            st.image(LOGO_URL, use_container_width=True)
+        except:
+            pass # في حالة تأخر تحميل الصورة
+            
         st.write("<br>", unsafe_allow_html=True)
         
         with st.form("login_form"):
@@ -197,7 +201,11 @@ def check_notifications():
 def admin_portal():
     with st.sidebar:
         # 🖼️ عرض اللوجو
-        st.image(LOGO_URL, use_container_width=True)
+        try:
+            st.image(LOGO_URL, use_container_width=True)
+        except:
+            pass
+            
         st.divider()
         st.markdown(f"#### 👋 مرحباً يا مدير: **{st.session_state.emp_name}**")
         st.divider()
@@ -229,7 +237,11 @@ def admin_portal():
 def employee_portal():
     with st.sidebar:
         # 🖼️ عرض اللوجو
-        st.image(LOGO_URL, use_container_width=True)
+        try:
+            st.image(LOGO_URL, use_container_width=True)
+        except:
+            pass
+            
         st.divider()
         st.markdown(f"#### 👋 مرحباً: **{st.session_state.emp_name}**")
         st.markdown(f"**القسم:** {st.session_state.role}")
