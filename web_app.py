@@ -26,18 +26,13 @@ warnings.simplefilter('ignore', UserWarning)
 # إعدادات الصفحة
 st.set_page_config(page_title="NASAQ ERP - Cloud", page_icon="🌐", layout="wide")
 
-# 🛠️ التعديل هنا: دالة الاتصال بقاعدة البيانات (استخدام Port 5432 للاتصال السحابي المستقر)
+# ✅ التعديل الجذري: الاتصال عبر رابط URI المباشر لضمان الثبات في السحاب
 @st.cache_resource(ttl=60) 
 def init_connection():
     try:
-        return psycopg2.connect(
-            dbname="postgres", 
-            user="postgres", 
-            password="Nasaq268609", 
-            host="db.jfqmcgicbdrhrtkhuwws.supabase.co", 
-            port="5432",  # <--- تم التغيير من 6543 لـ 5432
-            sslmode="require"
-        )
+        # رابط الاتصال المباشر (URI) يتخطى مشاكل تعريف العنوان (Cannot assign requested address)
+        db_uri = "postgresql://postgres:Nasaq268609@db.jfqmcgicbdrhrtkhuwws.supabase.co:5432/postgres"
+        return psycopg2.connect(db_uri, sslmode="require")
     except Exception as e:
         st.error(f"❌ خطأ في الاتصال بالسحابة: {e}")
         return None
