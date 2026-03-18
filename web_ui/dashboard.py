@@ -1,13 +1,16 @@
 # web_ui/dashboard.py
 import streamlit as st
 import pandas as pd
-import os
-import webbrowser
 from datetime import datetime
 
 def render_dashboard(conn):
-    st.title("📊 لوحة القيادة (Dashboard)")
-    st.write(f"مرحباً بك في نظام NASAQ ERP. تاريخ اليوم: {datetime.now().strftime('%Y-%m-%d')}")
+    # تحسين العنوان ليظهر بشكل حضاري
+    st.markdown(f"""
+        <div style="text-align: right;">
+            <h1 style="color: #1e293b; margin-bottom: 0;">📊 لوحة القيادة (Dashboard)</h1>
+            <p style="color: #64748b;">مرحباً بك في نظام NASAQ ERP. تاريخ اليوم: {datetime.now().strftime('%Y-%m-%d')}</p>
+        </div>
+    """, unsafe_allow_html=True)
 
     try:
         conn.rollback()
@@ -49,16 +52,19 @@ def render_dashboard(conn):
         with st.expander("📝 عرض وتصدير تقرير أداء فريق العمل", expanded=True):
             st.write("يمكنك معاينة التقرير بالأسفل أو الضغط على الزر لتوليد ملف HTML للطباعة.")
             
-            if st.button("🖨️ توليد تقرير أداء فريق العمل للطباعة", use_container_width=True):
+            # تحديث الزر إلى الكود الجديد width="stretch"
+            generate_btn = st.button("🖨️ توليد تقرير أداء فريق العمل للطباعة", width="stretch")
+            
+            if generate_btn:
                 # جلب البيانات للتقرير
                 cursor.execute("SELECT work_order_sn, client_name, designer, technician, installer, current_stage, status FROM orders")
                 orders = cursor.fetchall()
 
-                # بناء كود HTML الاحترافي (نفس التصميم اللي إنت طالبه)
+                # بناء كود HTML الاحترافي
                 html_content = f"""
                 <html dir="rtl">
                 <head><meta charset="UTF-8"></head>
-                <body style="font-family:Tahoma, Arial; padding:30px; background:#f4f6f9;">
+                <body style="font-family:Arial; padding:30px; background:#f4f6f9;">
                     <div style="background:white; padding:20px; border-radius:10px; box-shadow:0 4px 8px rgba(0,0,0,0.1); max-width: 1000px; margin: auto;">
                         <h1 style="color:#2c3e50; text-align:center;">مؤسسة نسق - تقرير أداء فريق العمل</h1>
                         <p style="text-align:center; color: #7f8c8d;">تاريخ صدور التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
@@ -71,7 +77,7 @@ def render_dashboard(conn):
                                 <th>المصمم</th>
                                 <th>فني الإنتاج</th>
                                 <th>عامل التركيب</th>
-                                <th>المرحلة الحالية</th>
+                                <th>المرحلة</th>
                                 <th>الحالة</th>
                             </tr>
                 """
@@ -90,13 +96,13 @@ def render_dashboard(conn):
                 
                 html_content += "</table></div></body></html>"
                 
-                # في الويب، نعرض زر تحميل للملف بدل فتحه بـ webbrowser (لأن السيرفر قد يكون بعيداً)
+                # تحديث زر التحميل إلى الكود الجديد width="stretch"
                 st.download_button(
                     label="📥 اضغط هنا لتحميل ملف التقرير (HTML) وجاهز للطباعة",
                     data=html_content,
                     file_name=f"admin_report_{datetime.now().strftime('%Y%m%d')}.html",
                     mime="text/html",
-                    use_container_width=True
+                    width="stretch"
                 )
                 st.success("تم تجهيز التقرير بنجاح!")
 
@@ -104,8 +110,17 @@ def render_dashboard(conn):
         # 3. عرض سريع لأحدث الأوامر
         # ==========================================
         st.markdown("### 🕒 أحدث أوامر العمل")
-        df_latest = pd.read_sql("SELECT work_order_sn AS \"الأمر\", client_name AS \"العميل\", current_stage AS \"المرحلة\" FROM orders ORDER BY id DESC LIMIT 5", conn)
-        st.table(df_latest)
+        df_latest = pd.read_sql("""
+            SELECT 
+                work_order_sn AS "رقم الأمر", 
+                client_name AS "العميل", 
+                current_stage AS "المرحلة الحالية" 
+            FROM orders 
+            ORDER BY id DESC LIMIT 5
+        """, conn)
+        
+        # عرض الجدول بتنسيق أنيق
+        st.dataframe(df_latest, width="stretch", hide_index=True)
 
     except Exception as e:
         st.error(f"حدث خطأ في تحميل لوحة القيادة: {e}")
