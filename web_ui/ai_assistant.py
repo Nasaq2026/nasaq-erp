@@ -1,48 +1,61 @@
 # web_ui/ai_assistant.py
 import streamlit as st
-import google.generativeai as genai
+from google import genai # 👈 المكتبة الجديدة المعتمدة في 2026
+import os
 
 def render_ai_assistant():
     st.markdown("""
         <div style="text-align: right;">
-            <h1 style="color: #38bdf8;">🤖 مساعد نسق الذكي (Gemini)</h1>
-            <p style="color: #64748b;">أنا هنا لمساعدتك في أفكار التصميم، كتابة محتوى الإعلانات، أو تحليل بيانات ورشتك.</p>
+            <h1 style="color: #38bdf8;">🤖 مساعد نسق الذكي (Gemini 2.0)</h1>
+            <p style="color: #64748b;">أنا هنا لمساعدتك باستخدام أحدث تقنيات الذكاء الاصطناعي من جوجل.</p>
         </div>
     """, unsafe_allow_html=True)
 
-    # إعداد مفتاح API (يُفضل وضعه في Secrets)
-    # ملاحظة: احصل على مفتاحك من Google AI Studio
-    API_KEY = "ضغ_مفتاح_API_الخاص_بك_هنا" 
-    genai.configure(api_key=API_KEY)
-    model = genai.GenerativeModel('gemini-pro')
+    # إعداد العميل (Client) باستخدام المكتبة الجديدة
+    # يُفضل وضع المفتاح في st.secrets لضمان الأمان
+    try:
+        api_key = st.secrets["GEMINI_API_KEY"] if "GEMINI_API_KEY" in st.secrets else "ضغ_مفتاحك_هنا"
+        client = genai.Client(api_key=api_key)
+    except Exception as e:
+        st.error("❌ لم يتم العثور على مفتاح API. تأكد من إعداده في Secrets.")
+        return
 
-    # تهيئة ذاكرة الشات في الـ Session State
+    # تهيئة الذاكرة (Session State)
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # عرض الرسائل السابقة بتصميم زجاجي
+    # عرض المحادثات السابقة
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # استقبال مدخلات المستخدم
-    if prompt := st.chat_input("كيف يمكنني مساعدتك في 'نسق' اليوم؟"):
-        # عرض رسالة المستخدم
+    # واجهة إدخال الشات
+    if prompt := st.chat_input("اسألني عن أفكار تصاميم، أو محتوى إعلاني لـ 'نسق'..."):
+        # إضافة رسالة المستخدم للذاكرة والعرض
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # توليد رد من جيمناي
+        # طلب الرد من Gemini باستخدام الطريقة الجديدة generate
         with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            full_response = ""
-            
             try:
-                # إضافة سياق لـ Gemini عشان يعرف إنه شغال في مؤسسة نسق
-                context = f"أنت مساعد ذكي مدمج في نظام NASAQ ERP لمؤسسة دعاية وإعلان. الموظف يسألك: {prompt}"
-                response = model.generate_content(context)
+                # إضافة سياق (Context) لجعل الردود متخصصة في الدعاية والإعلان
+                system_instruction = "أنت خبير في الدعاية والإعلان وتعمل كمساعد ذكي داخل نظام NASAQ ERP. ساعد الموظفين بلهجة مهنية وودودة."
+                
+                response = client.models.generate_content(
+                    model="gemini-2.0-flash", # أو gemini-1.5-pro حسب رغبتك
+                    contents=prompt,
+                    config=genai.types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        temperature=0.7
+                    )
+                )
+                
                 full_response = response.text
-                message_placeholder.markdown(full_response)
+                st.markdown(full_response)
+                
+                # حفظ الرد في الذاكرة
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
+            
             except Exception as e:
-                st.error(f"❌ عذراً، حدث خطأ في الاتصال بـ Gemini: {e}")
+                st.error(f"⚠️ فشل الاتصال بالذكاء الاصطناعي: {e}")
