@@ -4,11 +4,11 @@ import psycopg2
 import warnings
 from datetime import datetime
 import os
-import sys # 👈 أضفنا هذا المكتبة
+import sys
 from PIL import Image
 
 # --- 💡 الخطوة السحرية للحل الجذري ---
-# إضافة مسار المجلد الحالي لمسارات بايثون لضمان رؤية web_ui
+# إضافة مسار المجلد الحالي لمسارات بايثون لضمان رؤية web_ui و utils
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.append(current_dir)
@@ -38,12 +38,13 @@ try:
     from web_ui.designer import render_designer
     from web_ui.technician import render_technician
     from web_ui.installer import render_installer
+    # استيراد شاشة المساعد الذكي الجديدة
+    from web_ui.ai_assistant import render_ai_assistant 
 except ImportError as e:
     st.error(f"❌ فشل استيراد ملفات النظام: {e}")
-    st.info("تأكد من وجود ملف فارغ باسم __init__.py داخل مجلد web_ui")
-    st.stop() # إيقاف التشغيل في حال فشل الاستيراد لمنع أخطاء أخرى
+    st.info("تأكد من وجود ملف فارغ باسم __init__.py داخل مجلد web_ui ووجود ملف ai_assistant.py")
+    st.stop()
 
-# [بقية الكود الخاص بك كما هو بدون تغيير...]
 # 3. تحميل اللوجو
 @st.cache_data
 def load_logo():
@@ -57,7 +58,7 @@ def load_logo():
 
 LOGO_IMG = load_logo()
 
-# 4. حقن الـ CSS
+# 4. حقن الـ CSS المطور (تصميم زجاجي احترافي)
 def inject_creative_css():
     st.markdown("""
     <style>
@@ -75,7 +76,7 @@ def inject_creative_css():
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
         padding: 14px 20px !important;
         border-radius: 12px !important;
-        margin-bottom: 12px !important;
+        margin-bottom: 10px !important;
         display: flex; align-items: center; transition: 0.3s; width: 100% !important;
     }
     [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label[data-selected="true"] {
@@ -84,6 +85,8 @@ def inject_creative_css():
         box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
     }
     header {visibility: hidden;}
+    /* تحسين شكل الشات الخاص بجيمناي */
+    .stChatMessage { border-radius: 15px; margin-bottom: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -96,7 +99,7 @@ if "logged_in" not in st.session_state:
     st.session_state.role = ""
     st.session_state.last_order_count = 0
 
-# 6. الربط بقاعدة البيانات
+# 6. الربط بقاعدة البيانات (بوابة Supabase)
 @st.cache_resource(ttl=60) 
 def init_connection():
     try:
@@ -108,20 +111,20 @@ def init_connection():
 
 conn = init_connection()
 
-# [بقية الدوال admin_portal و employee_portal و login_screen تبقى كما هي تماماً]
 def show_logo(width=200):
     if LOGO_IMG:
         st.image(LOGO_IMG, width=width)
     else:
         st.markdown("<h2 style='color: #38bdf8; text-align: center;'>NASAQ ERP</h2>", unsafe_allow_html=True)
 
+# 7. شاشة الدخول
 def login_screen():
     st.write("<br><br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         show_logo(width=300)
         with st.form("login_form"):
-            st.markdown("<h3 style='text-align: center;'>تسجيل الدخول</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='text-align: center;'>تسجيل الدخول للنظام</h3>", unsafe_allow_html=True)
             serial = st.text_input("رقم الموظف")
             password = st.text_input("كلمة المرور", type="password")
             if st.form_submit_button("دخول آمن", width="stretch"):
@@ -140,22 +143,33 @@ def login_screen():
                     except Exception as e:
                         st.error(f"خطأ في الاستعلام: {e}")
 
+# 8. بوابات النظام
 def admin_portal():
     with st.sidebar:
         show_logo(width=220)
         st.divider()
         menu_options = [
-            "📊 لوحة القيادة", "➕ طلب تشغيل جديد", "📦 إدارة الورشة", 
-            "🧾 الفواتير والمالية", "👥 إدارة العملاء", "💬 تواصل وواتساب",
-            "📢 حملات تسويقية", "👨‍💼 إدارة الفريق", "🧮 حاسبة التكاليف", "⚙️ إعدادات النظام"
+            "📊 لوحة القيادة", 
+            "🤖 المساعد الذكي (Gemini)", # 👈 تمت إضافة الخيار هنا
+            "➕ طلب تشغيل جديد", 
+            "📦 إدارة الورشة", 
+            "🧾 الفواتير والمالية", 
+            "👥 إدارة العملاء", 
+            "💬 تواصل وواتساب",
+            "📢 حملات تسويقية", 
+            "👨‍💼 إدارة الفريق", 
+            "🧮 حاسبة التكاليف", 
+            "⚙️ إعدادات النظام"
         ]
-        menu = st.radio("القائمة:", menu_options, label_visibility="collapsed")
+        menu = st.radio("القائمة الرئيسية:", menu_options, label_visibility="collapsed")
         st.divider()
         if st.button("🚪 تسجيل الخروج", width="stretch"):
             st.session_state.logged_in = False
             st.rerun()
 
+    # نظام التنقل
     if menu == "📊 لوحة القيادة": render_dashboard(conn)
+    elif menu == "🤖 المساعد الذكي (Gemini)": render_ai_assistant() # 👈 ربط الدالة
     elif menu == "➕ طلب تشغيل جديد": render_new_order(conn)
     elif menu == "📦 إدارة الورشة": render_orders(conn)
     elif menu == "🧾 الفواتير والمالية": render_accounts(conn)
@@ -169,16 +183,23 @@ def admin_portal():
 def employee_portal():
     with st.sidebar:
         show_logo(width=180)
-        st.markdown(f"<div style='text-align:center;'>👋 أهلاً {st.session_state.emp_name}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align:center; color:#38bdf8;'>👋 أهلاً {st.session_state.emp_name}</div>", unsafe_allow_html=True)
+        st.divider()
+        # الموظفين العاديين يمكنهم أيضاً الوصول للمساعد الذكي
+        menu_emp = st.radio("القائمة:", ["🏠 الشاشة الرئيسية", "🤖 مساعد Gemini"], label_visibility="collapsed")
         st.divider()
         if st.button("🚪 تسجيل الخروج", width="stretch"):
             st.session_state.logged_in = False
             st.rerun()
             
-    if st.session_state.role == "Designer": render_designer(conn, st.session_state.emp_name)
-    elif st.session_state.role == "Technician": render_technician(conn, st.session_state.emp_name)
-    elif st.session_state.role == "Installer": render_installer(conn, st.session_state.emp_name)
+    if menu_emp == "🤖 مساعد Gemini":
+        render_ai_assistant()
+    else:
+        if st.session_state.role == "Designer": render_designer(conn, st.session_state.emp_name)
+        elif st.session_state.role == "Technician": render_technician(conn, st.session_state.emp_name)
+        elif st.session_state.role == "Installer": render_installer(conn, st.session_state.emp_name)
 
+# 9. التشغيل النهائي
 if not st.session_state.logged_in:
     login_screen()
 else:
