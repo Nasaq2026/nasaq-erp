@@ -6,21 +6,7 @@ from datetime import datetime
 import os
 from PIL import Image
 
-# استيراد الشاشات
-from web_ui.dashboard import render_dashboard
-from web_ui.new_order import render_new_order
-from web_ui.orders import render_orders
-from web_ui.accounts import render_accounts
-from web_ui.clients import render_clients
-from web_ui.communication import render_communication
-from web_ui.marketing import render_marketing
-from web_ui.employees import render_employees
-from web_ui.categories import render_categories
-from web_ui.calculator import render_calculator
-from web_ui.designer import render_designer
-from web_ui.technician import render_technician
-from web_ui.installer import render_installer
-
+# 1. تهيئة الإعدادات الأساسية
 warnings.simplefilter('ignore', UserWarning)
 
 st.set_page_config(
@@ -30,7 +16,27 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 🖼️ تحميل اللوجو ---
+# 2. استيراد الشاشات من مجلد web_ui
+# ملاحظة: تأكد أن مجلد web_ui يحتوي على ملف __init__.py (حتى لو فارغ) ليعتبره بايثون حزمة
+try:
+    from web_ui.dashboard import render_dashboard
+    from web_ui.new_order import render_new_order
+    from web_ui.orders import render_orders
+    from web_ui.accounts import render_accounts
+    from web_ui.clients import render_clients
+    from web_ui.communication import render_communication
+    from web_ui.marketing import render_marketing
+    from web_ui.employees import render_employees
+    from web_ui.categories import render_categories
+    from web_ui.calculator import render_calculator
+    from web_ui.designer import render_designer
+    from web_ui.technician import render_technician
+    from web_ui.installer import render_installer
+except ImportError as e:
+    st.error(f"❌ فشل استيراد أحد ملفات الواجهة: {e}")
+    st.info("تأكد أن جميع الملفات موجودة داخل مجلد web_ui وأن أسماءها تطابق الكود تماماً (Small Letters).")
+
+# 3. تحميل اللوجو
 @st.cache_data
 def load_logo():
     try:
@@ -44,7 +50,7 @@ def load_logo():
 
 LOGO_IMG = load_logo()
 
-# --- ✨ حقن الـ CSS (تصميم زجاجي + نصوص بيضاء) ---
+# 4. حقن الـ CSS المطور (تصميم زجاجي + نصوص بيضاء ناصعة)
 def inject_creative_css():
     st.markdown("""
     <style>
@@ -65,6 +71,7 @@ def inject_creative_css():
         display: none !important;
     }
 
+    /* نصوص القائمة الجانبية باللون الأبيض الصريح */
     [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] p {
         color: #ffffff !important;
         font-size: 16px !important;
@@ -95,21 +102,21 @@ def inject_creative_css():
 
 inject_creative_css()
 
-# --- 🛠️ تهيئة الـ Session State (حل المشكلة هنا) ---
+# 5. تهيئة الـ Session State
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.emp_name = ""
     st.session_state.role = ""
-    st.session_state.last_order_count = 0 # ✅ تم التعريف بنجاح
+    st.session_state.last_order_count = 0
 
-# ✅ الربط بقاعدة البيانات
+# 6. الربط بقاعدة البيانات
 @st.cache_resource(ttl=60) 
 def init_connection():
     try:
         db_uri = "postgresql://postgres.jfqmcgicbdrhrtkhuwws:Nasaq268609@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres"
         return psycopg2.connect(db_uri, sslmode="require", connect_timeout=10)
     except Exception as e:
-        st.error(f"❌ خطأ في الاتصال: {e}")
+        st.error(f"❌ خطأ في الاتصال بقاعدة البيانات: {e}")
         return None
 
 conn = init_connection()
@@ -120,7 +127,7 @@ def show_logo(width=200):
     else:
         st.markdown("<h2 style='color: #38bdf8; text-align: center;'>NASAQ ERP</h2>", unsafe_allow_html=True)
 
-# شاشة الدخول
+# 7. شاشة الدخول
 def login_screen():
     st.write("<br><br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.2, 1])
@@ -132,16 +139,21 @@ def login_screen():
             password = st.text_input("كلمة المرور", type="password")
             if st.form_submit_button("دخول آمن", width="stretch"):
                 if conn:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT emp_name, role FROM employees WHERE serial_number = %s AND password = %s", (serial, password))
-                    user = cursor.fetchone()
-                    if user:
-                        st.session_state.logged_in = True
-                        st.session_state.emp_name = user[0]
-                        st.session_state.role = user[1]
-                        st.rerun()
-                    else: st.error("بيانات غير صحيحة")
+                    try:
+                        conn.rollback()
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT emp_name, role FROM employees WHERE serial_number = %s AND password = %s", (serial, password))
+                        user = cursor.fetchone()
+                        if user:
+                            st.session_state.logged_in = True
+                            st.session_state.emp_name = user[0]
+                            st.session_state.role = user[1]
+                            st.rerun()
+                        else: st.error("بيانات الدخول غير صحيحة")
+                    except Exception as e:
+                        st.error(f"خطأ في الاستعلام: {e}")
 
+# 8. بوابات النظام (Admin / Employees)
 def admin_portal():
     with st.sidebar:
         show_logo(width=220)
@@ -157,6 +169,7 @@ def admin_portal():
             st.session_state.logged_in = False
             st.rerun()
 
+    # التوجيه بناءً على الخيار
     if menu == "📊 لوحة القيادة": render_dashboard(conn)
     elif menu == "➕ طلب تشغيل جديد": render_new_order(conn)
     elif menu == "📦 إدارة الورشة": render_orders(conn)
@@ -168,17 +181,22 @@ def admin_portal():
     elif menu == "🧮 حاسبة التكاليف": render_calculator(conn)
     elif menu == "⚙️ إعدادات النظام": render_categories(conn)
 
+def employee_portal():
+    with st.sidebar:
+        show_logo(width=180)
+        st.markdown(f"<div style='text-align:center;'>👋 أهلاً {st.session_state.emp_name}</div>", unsafe_allow_html=True)
+        st.divider()
+        if st.button("🚪 تسجيل الخروج", width="stretch"):
+            st.session_state.logged_in = False
+            st.rerun()
+            
+    if st.session_state.role == "Designer": render_designer(conn, st.session_state.emp_name)
+    elif st.session_state.role == "Technician": render_technician(conn, st.session_state.emp_name)
+    elif st.session_state.role == "Installer": render_installer(conn, st.session_state.emp_name)
+
+# 9. التشغيل
 if not st.session_state.logged_in:
     login_screen()
 else:
     if st.session_state.role == "Admin": admin_portal()
-    else:
-        with st.sidebar:
-            show_logo(width=180)
-            st.write(f"👋 {st.session_state.emp_name}")
-            if st.button("تسجيل الخروج", width="stretch"):
-                st.session_state.logged_in = False
-                st.rerun()
-        if st.session_state.role == "Designer": render_designer(conn, st.session_state.emp_name)
-        elif st.session_state.role == "Technician": render_technician(conn, st.session_state.emp_name)
-        elif st.session_state.role == "Installer": render_installer(conn, st.session_state.emp_name)
+    else: employee_portal()
