@@ -1,29 +1,29 @@
 # web_ui/orders.py
 import streamlit as st
 import pandas as pd
-import urllib.parse
 from datetime import datetime
-import base64
-import qrcode
-import io
 
 def render_orders(conn):
-    st.title("📦 إدارة الطلبات وأوامر العمل (المدير)")
-    st.info("هذه الشاشة مخصصة للمتابعة، تعديل بيانات الطاقم الفني، وإصدار المستندات.")
+    st.markdown("""
+        <div style="text-align: right;">
+            <h1 style="color: #1e293b;">📦 إدارة الطلبات وأوامر العمل (المدير)</h1>
+            <p style="color: #64748b;">متابعة سير العمل، تعديل بيانات الطاقم الفني، وإصدار المستندات الرسمية.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
     try:
         conn.rollback()
         cursor = conn.cursor()
 
-        # 1. جلب البيانات والقوائم المساعدة (المصممين، الفنيين، التركيب)
+        # 1. جلب قوائم الموظفين
         cursor.execute("SELECT emp_name FROM employees WHERE role = 'Designer'")
-        designers_list = [r[0] for r in cursor.fetchall()]
+        designers_list = [r[0] for r in cursor.fetchall()] or ["بدون مصمم"]
         
         cursor.execute("SELECT emp_name FROM employees WHERE role = 'Technician'")
-        tech_list = [r[0] for r in cursor.fetchall()]
+        tech_list = [r[0] for r in cursor.fetchall()] or ["بدون فني"]
         
         cursor.execute("SELECT emp_name FROM employees WHERE role = 'Installer'")
-        installers_list = [r[0] for r in cursor.fetchall()]
+        installers_list = [r[0] for r in cursor.fetchall()] or ["بدون فريق تركيب"]
 
         # سحب بيانات الطلبات
         query = "SELECT * FROM orders ORDER BY id DESC"
@@ -33,45 +33,50 @@ def render_orders(conn):
             st.warning("📭 لا توجد طلبات مسجلة حالياً.")
             return
 
-        # عرض الجدول بشكل أنيق
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        # ✅ عرض الجدول بالكود الجديد width="stretch"
+        st.dataframe(df, width="stretch", hide_index=True)
 
         st.divider()
 
         # ==========================================
-        # 2. محرك التعديل والتحكم (The Controller)
+        # 2. محرك التعديل والتحكم
         # ==========================================
         st.markdown("### ⚙️ تعديل بيانات أمر العمل")
         
         selected_order_sn = st.selectbox("🎯 اختر رقم (أمر العمل) للتعديل عليه:", df['work_order_sn'].tolist())
         
-        # استخراج بيانات الطلب المختار
         order_data = df[df['work_order_sn'] == selected_order_sn].iloc[0]
 
-        # إنشاء نموذج التعديل السريع
         with st.expander(f"📝 تعديل تفاصيل الطلب رقم: {selected_order_sn}", expanded=True):
             col_e1, col_e2, col_e3 = st.columns(3)
             
-            # تحديد القيم الحالية كافتراضية
+            # تحديد القيم الحالية
+            current_des = order_data['designer']
+            current_tech = order_data['technician']
+            current_inst = order_data['installer']
+
             new_des = col_e1.selectbox("المصمم المكلف:", designers_list, 
-                                       index=designers_list.index(order_data['designer']) if order_data['designer'] in designers_list else 0)
+                                       index=designers_list.index(current_des) if current_des in designers_list else 0)
             
             new_tech = col_e2.selectbox("الفني المكلف:", tech_list, 
-                                        index=tech_list.index(order_data['technician']) if order_data['technician'] in tech_list else 0)
+                                        index=tech_list.index(current_tech) if current_tech in tech_list else 0)
             
             new_inst = col_e3.selectbox("فريق التركيب:", installers_list, 
-                                        index=installers_list.index(order_data['installer']) if order_data['installer'] in installers_list else 0)
+                                        index=installers_list.index(current_inst) if current_inst in installers_list else 0)
 
             col_e4, col_e5 = st.columns(2)
-            new_stage = col_e4.selectbox("تغيير المرحلة الحالية:", ["التصميم", "الطباعة والإنتاج", "التركيب", "جاهز للتسليم"], 
-                                         index=["التصميم", "الطباعة والإنتاج", "التركيب", "جاهز للتسليم"].index(order_data['current_stage']) if order_data['current_stage'] in ["التصميم", "الطباعة والإنتاج", "التركيب", "جاهز للتسليم"] else 0)
+            stages = ["التصميم", "الطباعة والإنتاج", "التركيب", "جاهز للتسليم"]
+            new_stage = col_e4.selectbox("تغيير المرحلة الحالية:", stages, 
+                                         index=stages.index(order_data['current_stage']) if order_data['current_stage'] in stages else 0)
             
-            new_status = col_e5.selectbox("تغيير الحالة العامة:", ["نشط", "مكتمل", "قيد الانتظار", "ملغي"], 
-                                          index=["نشط", "مكتمل", "قيد الانتظار", "ملغي"].index(order_data['status']))
+            statuses = ["نشط", "مكتمل", "قيد الانتظار", "ملغي"]
+            new_status = col_e5.selectbox("تغيير الحالة العامة:", statuses, 
+                                          index=statuses.index(order_data['status']))
 
             new_details = st.text_area("تعديل التفاصيل الفنية:", value=order_data['details'])
 
-            if st.button("💾 حفظ التعديلات الجديدة", type="primary", use_container_width=True):
+            # ✅ تحديث الزر للكود الجديد width="stretch"
+            if st.button("💾 حفظ التعديلات الجديدة", width="stretch"):
                 cursor.execute("""
                     UPDATE orders 
                     SET designer = %s, technician = %s, installer = %s, 
@@ -85,28 +90,28 @@ def render_orders(conn):
         st.divider()
 
         # ==========================================
-        # 3. الطباعة والتصدير (نفس كودك السابق)
+        # 3. الطباعة والتصدير
         # ==========================================
         st.markdown("### 🖨️ المستندات والطباعة")
         c1, c2, c3, c4 = st.columns(4)
 
-        if c1.button("📑 تجهيز أمر عمل", use_container_width=True):
+        # ✅ تحديث كافة الأزرار للكود الجديد width="stretch"
+        if c1.button("📑 تجهيز أمر عمل", width="stretch"):
             html_wo = generate_wo_html(order_data)
-            st.download_button("📥 تحميل PDF/HTML", data=html_wo, file_name=f"WO_{selected_order_sn}.html")
+            st.download_button("📥 تحميل PDF/HTML", data=html_wo, file_name=f"WO_{selected_order_sn}.html", width="stretch")
 
-        if c2.button("🧾 تجهيز فاتورة", use_container_width=True):
+        if c2.button("🧾 تجهيز فاتورة", width="stretch"):
             html_inv = generate_inv_html(order_data)
-            st.download_button("📥 تحميل الفاتورة", data=html_inv, file_name=f"Invoice_{selected_order_sn}.html")
-
-        # ... (باقي دوال الواتساب وإكسل كما هي في كودك السابق)
+            st.download_button("📥 تحميل الفاتورة", data=html_inv, file_name=f"Invoice_{selected_order_sn}.html", width="stretch")
 
     except Exception as e:
-        st.error(f"حدث خطأ: {e}")
+        st.error(f"حدث خطأ في النظام: {e}")
 
-# --- دوال التوليد (تأكد من وجودها في الأسفل كما في ملفك الأصلي) ---
+# --- دوال التوليد ---
 def generate_wo_html(data):
-    # كود HTML لأمر العمل...
-    return "..."
+    # كود HTML مبسط لأمر العمل
+    return f"<html><body dir='rtl'><h1>أمر عمل: {data['work_order_sn']}</h1></body></html>"
+
 def generate_inv_html(data):
-    # كود HTML للفاتورة...
-    return "..."
+    # كود HTML مبسط للفاتورة
+    return f"<html><body dir='rtl'><h1>فاتورة ضريبية: {data['work_order_sn']}</h1></body></html>"
