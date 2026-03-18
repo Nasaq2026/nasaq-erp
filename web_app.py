@@ -26,28 +26,23 @@ warnings.simplefilter('ignore', UserWarning)
 # إعدادات الصفحة
 st.set_page_config(page_title="NASAQ ERP - Cloud", page_icon="🌐", layout="wide")
 
-# ✅ الحل الجذري والنهائي للاتصال بالسحابة (Supabase Connection)
+# ✅ الحل المستقر والنهائي للاتصال بسحابة Supabase (عبر الـ Pooler الموحد)
 @st.cache_resource(ttl=60) 
 def init_connection():
-    # محاولة أولى: استخدام الـ IP المباشر لتخطي مشاكل IPv6 والـ DNS
     try:
+        # استخدام الـ Connection Pooler الخاص بـ AWS eu-central-1 (المنطقة الأقرب للسعودية)
         return psycopg2.connect(
             dbname="postgres", 
             user="postgres", 
             password="Nasaq268609", 
-            host="15.236.155.132", # IP مباشر لسيرفرات AWS المضيفة لـ Supabase
+            host="aws-0-eu-central-1.pooler.supabase.com", # الـ Host الأكثر استقراراً للسحاب
             port="5432", 
             sslmode="require",
             connect_timeout=10
         )
-    except:
-        # محاولة ثانية (خطة بديلة): استخدام رابط الـ URI الموحد
-        try:
-            db_uri = "postgresql://postgres:Nasaq268609@db.jfqmcgicbdrhrtkhuwws.supabase.co:5432/postgres"
-            return psycopg2.connect(db_uri, sslmode="require", connect_timeout=10)
-        except Exception as e:
-            st.error(f"❌ عذراً، نواجه مشكلة في الوصول لقاعدة البيانات. يرجى المحاولة لاحقاً. {e}")
-            return None
+    except Exception as e:
+        st.error(f"❌ عذراً، نواجه مشكلة تقنية في الاتصال بالسيرفر. يرجى تحديث الصفحة. {e}")
+        return None
 
 conn = init_connection()
 
@@ -87,7 +82,7 @@ def login_screen():
                     except Exception as e:
                         st.error(f"خطأ في قاعدة البيانات: {e}")
                 else:
-                    st.warning("⚠️ جاري إعادة محاولة الاتصال بالسيرفر.. انتظر لحظة.")
+                    st.warning("⚠️ جاري محاولة تأمين الاتصال بالسيرفر.. انتظر لحظة.")
 
 # --- نظام الإشعارات اللحظي ---
 def check_notifications():
