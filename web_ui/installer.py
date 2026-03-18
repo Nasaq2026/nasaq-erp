@@ -13,7 +13,7 @@ def render_installer(conn, emp_name):
         conn.rollback()
         cursor = conn.cursor()
         
-        # جلب المهام المسندة لفريق التركيب
+        # جلب مهام التركيب النشطة لهذا الموظف
         cursor.execute("""
             SELECT id, work_order_sn, client_name, dimensions, details, material_type 
             FROM orders 
@@ -29,24 +29,17 @@ def render_installer(conn, emp_name):
         for task in tasks:
             order_id, sn, client, dims, details, mat = task
             
-            with st.expander(f"🚛 تركيب أمر: {sn} | العميل: {client}", expanded=True):
-                st.markdown(f"**📏 المقاسات:** `{dims if dims else '---'}`")
-                st.markdown(f"**💎 نوع الخامة:** `{mat if mat else '---'}`")
-                st.info(f"📝 **تفاصيل التركيب:** {details if details else 'لا توجد ملاحظات إضافية.'}")
+            with st.expander(f"🚛 تركيب رقم: {sn} | العميل: {client}", expanded=True):
+                st.markdown(f"**📏 المقاسات:** `{dims if dims else '---'}` | **💎 الخامة:** `{mat if mat else '---'}`")
+                st.info(f"📝 **ملاحظات الموقع:** {details if details else 'لا توجد.'}")
                 
-                st.markdown("<br>", unsafe_allow_html=True)
-                
-                # ✅ زر إنهاء المهمة بالكود الجديد width="stretch"
-                if st.button(f"✅ تم التركيب بنجاح (إغلاق الطلب)", key=f"inst_{order_id}", width="stretch"):
-                    cursor.execute("""
-                        UPDATE orders 
-                        SET current_stage = 'مكتمل', status = 'مكتمل' 
-                        WHERE id = %s
-                    """, (order_id,))
+                # زر إنهاء المهمة
+                if st.button(f"✅ تم التركيب (إغلاق الطلب)", key=f"inst_btn_{order_id}", width="stretch"):
+                    cursor.execute("UPDATE orders SET current_stage = 'مكتمل', status = 'مكتمل' WHERE id = %s", (order_id,))
                     conn.commit()
-                    st.success(f"🚀 كفو! تم إنهاء الطلب {sn} بنجاح.")
+                    st.success(f"🚀 ممتاز! تم إنهاء الطلب {sn} بنجاح.")
                     st.balloons()
                     st.rerun()
 
     except Exception as e:
-        st.error(f"❌ حدث خطأ في واجهة التركيب: {e}")
+        st.error(f"❌ خطأ في واجهة التركيب: {e}")
