@@ -17,8 +17,12 @@ OPERATION_TIMES = {
 }
 
 def render_new_order(conn):
-    st.title("➕ إضافة طلب تشغيل (نظام ذكي)")
-    st.info("يقوم النظام بحساب موعد التسليم تلقائياً بناءً على حجم العمل والضغط الحالي على الفريق.")
+    st.markdown("""
+        <div style="text-align: right;">
+            <h1 style="color: #1e293b;">➕ إضافة طلب تشغيل (نظام ذكي)</h1>
+            <p style="color: #64748b;">يقوم النظام بحساب موعد التسليم تلقائياً بناءً على حجم العمل وضغط الفريق.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
     try:
         conn.rollback()
@@ -39,7 +43,6 @@ def render_new_order(conn):
         # ==========================================
         st.markdown("### 👤 بيانات العميل")
         
-        # سحب العملاء للبحث
         cursor.execute("SELECT phone, client_name, tax_number, cr_number, national_address, orders_count FROM clients")
         clients_data = cursor.fetchall()
         client_dict = {f"{r[0]} - {r[1]}": r for r in clients_data if r[0]}
@@ -47,7 +50,6 @@ def render_new_order(conn):
         client_options = ["✨ إضافة عميل جديد (اكتب البيانات بالأسفل)"] + list(client_dict.keys())
         selected_client = st.selectbox("🔍 ابحث برقم الجوال أو اسم العميل:", client_options)
 
-        # تجهيز المتغيرات للعميل
         pre_name, pre_phone, pre_tax, pre_cr, pre_addr = "", "", "", "", ""
         if selected_client != "✨ إضافة عميل جديد (اكتب البيانات بالأسفل)":
             data = client_dict[selected_client]
@@ -55,9 +57,9 @@ def render_new_order(conn):
             pre_tax, pre_cr, pre_addr = data[2] or "", data[3] or "", data[4] or ""
             
             if data[5] >= 3:
-                st.markdown("### 🌟 <span style='color:#F59E0B;'>عميل مميز (VIP)</span>", unsafe_allow_html=True)
+                st.info(f"🌟 عميل مميز (VIP) - إجمالي طلباته السابقة: {data[5]}")
             else:
-                st.markdown("### ✅ <span style='color:#3B82F6;'>عميل حالي</span>", unsafe_allow_html=True)
+                st.success("✅ عميل مسجل مسبقاً في النظام")
 
         col_c1, col_c2, col_c3 = st.columns(3)
         c_name = col_c1.text_input("اسم العميل *", value=pre_name)
@@ -84,7 +86,7 @@ def render_new_order(conn):
         st.divider()
 
         # ==========================================
-        # 3. إسناد المهام والموعد المتوقع (الذكاء الاصطناعي)
+        # 3. إسناد المهام والموعد المتوقع (Smart Calculation)
         # ==========================================
         st.markdown("### 👥 إسناد المهام والموعد المتوقع")
         col_m1, col_m2, col_m3 = st.columns(3)
@@ -94,7 +96,7 @@ def render_new_order(conn):
         
         req_install = st.checkbox("يتطلب تركيب ميداني")
 
-        # 🧠 خوارزمية حساب الوقت والطابور (Live)
+        # 🧠 خوارزمية حساب الوقت
         base_time = OPERATION_TIMES.get(category, OPERATION_TIMES['افتراضي'])
         if "ستيكر" in category or "بنر" in category:
             try:
@@ -106,7 +108,6 @@ def render_new_order(conn):
             
         estimated_hours = base_time
 
-        # سحب الطابور من الداتابيز
         cursor.execute("SELECT SUM(estimated_hours) FROM orders WHERE status = 'نشط' AND (designer = %s OR technician = %s)", (des, tec))
         res = cursor.fetchone()
         backlog_hours = float(res[0]) if res and res[0] else 0.0
@@ -117,13 +118,12 @@ def render_new_order(conn):
         expected_delivery = datetime.now() + timedelta(days=days_to_add, hours=hours_to_add)
         formatted_date = expected_delivery.strftime("%Y-%m-%d | %I:%M %p")
 
-        # عرض التنبيه البصري
         if total_wait_hours <= 8:
-            st.success(f"⏳ التسليم المتوقع: اليوم أو غداً ({formatted_date})")
+            st.success(f"🟢 التسليم المتوقع: اليوم أو غداً ({formatted_date})")
         elif total_wait_hours <= 24:
-            st.warning(f"⏳ التسليم المتوقع: بعد {days_to_add} أيام ({formatted_date})")
+            st.warning(f"🟡 التسليم المتوقع: خلال 3 أيام تقريباً ({formatted_date})")
         else:
-            st.error(f"⚠️ طابور مزدحم! التسليم المتوقع: ({formatted_date})")
+            st.error(f"🔴 طابور مزدحم! التسليم المتوقع: ({formatted_date})")
 
         st.divider()
 
@@ -136,10 +136,11 @@ def render_new_order(conn):
         cost = col_f2.number_input("التكلفة (المتوقعة)", min_value=0.0, step=10.0)
         paid = col_f3.number_input("المدفوع مقدماً", min_value=0.0, step=10.0)
 
-        # زر الحفظ النهائي
-        if st.button("💾 حفظ الطلب وإصدار أمر التشغيل", type="primary", use_container_width=True):
+        # زر الحفظ المحدث تماشياً مع 2026
+        save_btn = st.button("💾 حفظ الطلب وإصدار أمر التشغيل", width="stretch")
+
+        if save_btn:
             if c_name and c_phone and price > 0:
-                # تحديث أو إضافة العميل
                 if selected_client != "✨ إضافة عميل جديد (اكتب البيانات بالأسفل)":
                     cursor.execute("UPDATE clients SET orders_count = orders_count + 1 WHERE phone=%s", (c_phone,))
                 else:
@@ -148,13 +149,11 @@ def render_new_order(conn):
                         VALUES (%s, %s, %s, %s, %s, 1) ON CONFLICT (phone) DO NOTHING
                     """, (c_name, c_phone, c_tax, c_cr, c_addr))
 
-                # حسابات الضريبة
                 vat = price * 0.15
                 total = price + vat
                 profit = price - cost
                 wo_sn = f"WO-{datetime.now().strftime('%m%d%H%M')}"
 
-                # حفظ الطلب
                 sql = """
                     INSERT INTO orders (client_name, phone, price, vat, total_with_vat, paid, cost, profit, status, 
                     current_stage, category, details, designer, technician, installer, requires_install, 
@@ -165,10 +164,10 @@ def render_new_order(conn):
                 conn.commit()
                 
                 st.session_state.last_order_count += 1
-                st.success(f"🚀 تم حفظ الطلب بنجاح برقم {wo_sn}! وتم التنبيه لجميع الموظفين.")
-                st.balloons() # احتفال صغير عالشاشة
+                st.success(f"🚀 تم حفظ الطلب بنجاح برقم {wo_sn}!")
+                st.balloons()
             else:
                 st.error("⚠️ يرجى إدخال اسم العميل، رقم الجوال، والسعر على الأقل.")
 
     except Exception as e:
-        st.error(f"حدث خطأ: {e}")
+        st.error(f"حدث خطأ في النظام: {e}")
