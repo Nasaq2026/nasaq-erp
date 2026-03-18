@@ -26,22 +26,17 @@ warnings.simplefilter('ignore', UserWarning)
 # إعدادات الصفحة
 st.set_page_config(page_title="NASAQ ERP - Cloud", page_icon="🌐", layout="wide")
 
-# ✅ الإعدادات النهائية والصحيحة للربط السحابي (Pooler Mode)
+# ✅ الإعدادات النهائية للربط السحابي مع سيرفر الشرق الأوسط (البحرين)
 @st.cache_resource(ttl=60) 
 def init_connection():
     try:
-        # الربط باستخدام Transaction Mode (Port 6543) وهو الأنسب لـ Streamlit
-        return psycopg2.connect(
-            dbname="postgres", 
-            user="postgres.jfqmcgicbdrhrtkhuwws", # اسم المستخدم المدمج مع الـ ID
-            password="Nasaq268609", 
-            host="aws-0-eu-central-1.pooler.supabase.com", 
-            port="6543", # البورت المخصص للـ Pooler
-            sslmode="require",
-            connect_timeout=10
-        )
+        # استخدام رابط الـ URI المباشر لتخطي أي مشاكل في العناوين
+        # تم ضبط المنطقة على me-south-1 (الشرق الأوسط) والبورت على 6543
+        db_uri = "postgresql://postgres.jfqmcgicbdrhrtkhuwws:Nasaq268609@aws-0-me-south-1.pooler.supabase.com:6543/postgres"
+        
+        return psycopg2.connect(db_uri, sslmode="require", connect_timeout=10)
     except Exception as e:
-        st.error(f"❌ عذراً، هناك مشكلة في الاتصال بالسيرفر: {e}")
+        st.error(f"❌ عذراً، نواجه مشكلة تقنية في الاتصال بالسيرفر: {e}")
         return None
 
 conn = init_connection()
