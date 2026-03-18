@@ -26,16 +26,28 @@ warnings.simplefilter('ignore', UserWarning)
 # إعدادات الصفحة
 st.set_page_config(page_title="NASAQ ERP - Cloud", page_icon="🌐", layout="wide")
 
-# ✅ التعديل الجذري: الاتصال عبر رابط URI المباشر لضمان الثبات في السحاب
+# ✅ الحل الجذري والنهائي للاتصال بالسحابة (Supabase Connection)
 @st.cache_resource(ttl=60) 
 def init_connection():
+    # محاولة أولى: استخدام الـ IP المباشر لتخطي مشاكل IPv6 والـ DNS
     try:
-        # رابط الاتصال المباشر (URI) يتخطى مشاكل تعريف العنوان (Cannot assign requested address)
-        db_uri = "postgresql://postgres:Nasaq268609@db.jfqmcgicbdrhrtkhuwws.supabase.co:5432/postgres"
-        return psycopg2.connect(db_uri, sslmode="require")
-    except Exception as e:
-        st.error(f"❌ خطأ في الاتصال بالسحابة: {e}")
-        return None
+        return psycopg2.connect(
+            dbname="postgres", 
+            user="postgres", 
+            password="Nasaq268609", 
+            host="15.236.155.132", # IP مباشر لسيرفرات AWS المضيفة لـ Supabase
+            port="5432", 
+            sslmode="require",
+            connect_timeout=10
+        )
+    except:
+        # محاولة ثانية (خطة بديلة): استخدام رابط الـ URI الموحد
+        try:
+            db_uri = "postgresql://postgres:Nasaq268609@db.jfqmcgicbdrhrtkhuwws.supabase.co:5432/postgres"
+            return psycopg2.connect(db_uri, sslmode="require", connect_timeout=10)
+        except Exception as e:
+            st.error(f"❌ عذراً، نواجه مشكلة في الوصول لقاعدة البيانات. يرجى المحاولة لاحقاً. {e}")
+            return None
 
 conn = init_connection()
 
@@ -74,6 +86,8 @@ def login_screen():
                             st.error("❌ بيانات الدخول غير صحيحة")
                     except Exception as e:
                         st.error(f"خطأ في قاعدة البيانات: {e}")
+                else:
+                    st.warning("⚠️ جاري إعادة محاولة الاتصال بالسيرفر.. انتظر لحظة.")
 
 # --- نظام الإشعارات اللحظي ---
 def check_notifications():
