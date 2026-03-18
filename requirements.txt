@@ -3,4 +3,4 @@ psycopg2-binary
 pandas
 qrcode
 Pillow
-google-generativeai
+google-genai
