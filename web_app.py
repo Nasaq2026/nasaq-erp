@@ -17,19 +17,16 @@ from web_ui.designers import render_designers
 from web_ui.categories import render_categories
 from web_ui.calculator import render_calculator
 from web_ui.invoices import render_invoices
-# استيراد شاشات الموظفين
 from web_ui.designer import render_designer
 from web_ui.technician import render_technician
 from web_ui.installer import render_installer
-from utils.invoice import generate_invoice_html
-from utils.zatca import generate_zatca_qr
 
 warnings.simplefilter('ignore', UserWarning)
 
 # إعدادات الصفحة
 st.set_page_config(page_title="NASAQ ERP - Cloud", page_icon="🌐", layout="wide")
 
-# دالة الاتصال بقاعدة البيانات
+# 🛠️ التعديل هنا: دالة الاتصال بقاعدة البيانات (استخدام Port 5432 للاتصال السحابي المستقر)
 @st.cache_resource(ttl=60) 
 def init_connection():
     try:
@@ -38,7 +35,7 @@ def init_connection():
             user="postgres", 
             password="Nasaq268609", 
             host="db.jfqmcgicbdrhrtkhuwws.supabase.co", 
-            port="6543", 
+            port="5432",  # <--- تم التغيير من 6543 لـ 5432
             sslmode="require"
         )
     except Exception as e:
@@ -75,7 +72,6 @@ def login_screen():
                             st.session_state.logged_in = True
                             st.session_state.emp_name = user[0]
                             st.session_state.role = user[1]
-                            # جلب عدد الطلبات الأولي للإشعارات
                             cursor.execute("SELECT COUNT(*) FROM orders")
                             st.session_state.last_order_count = cursor.fetchone()[0]
                             st.rerun()
@@ -121,7 +117,6 @@ def admin_portal():
             st.session_state.logged_in = False
             st.rerun()
 
-    # الربط الفعلي بالملفات
     if menu == "📊 لوحة القيادة": render_dashboard(conn)
     elif menu == "➕ طلب تشغيل جديد": render_new_order(conn)
     elif menu == "📦 إدارة الطلبات (الورشة)": render_orders(conn)
