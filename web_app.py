@@ -3,7 +3,7 @@ import streamlit as st
 import psycopg2
 import warnings
 from datetime import datetime
-import os # لإدارة مسارات الملفات
+import os 
 
 # استيراد الشاشات من مجلد web_ui
 from web_ui.dashboard import render_dashboard
@@ -24,35 +24,31 @@ from web_ui.installer import render_installer
 
 warnings.simplefilter('ignore', UserWarning)
 
-# ✅ إعدادات الصفحة الاحترافية (تغيير الأيقونة والعنوان)
+# ✅ إعدادات الصفحة الاحترافية 
 st.set_page_config(
     page_title="نسق ERP | بوابة الإدارة السحابية", 
-    page_icon="🌐", # يمكنك وضع رابط لوجو صغير هنا أيضاً كـ Favicon
+    page_icon="🌐", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# 🔗 إعداد رابط اللوجو (استبدله برابط لوجو مؤسسة نسق الحقيقي)
-# يمكنك رفع اللوجو على GitHub واستخدام اسمه مباشرة إذا كان في نفس المجلد
-LOGO_URL = "https://via.placeholder.com/200x80.png?text=NASAQ+LOGO" 
-# إذا رفعت ملف اسمه logo.png في GitHub، اجعل السطر فوق هكذا:
-# LOGO_URL = os.path.join(os.path.dirname(__file__), 'logo.png')
-
+# 🔗 رابط اللوجو (حالياً صورة مؤقتة شيك، ولما تجهز اللوجو بتاعكم هنحط رابطه هنا)
+LOGO_URL = "https://via.placeholder.com/400x120.png?text=NASAQ+ERP" 
 
 # ✨ دالة حقن الـ CSS الاحترافي (الفخامة كلها هنا)
 def inject_creative_css():
     st.markdown("""
     <style>
     /* --- استيراد خط عربي احترافي (Cairo) --- */
-    @import url('https://fonts.googleapis.com/css2?Cairo:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
 
-    html, body, [data-testid="stSidebar"], .stMarkdown {
+    html, body, [class*="css"], .stMarkdown, div[data-testid="stSidebar"] * {
         font-family: 'Cairo', sans-serif !important;
-        direction: rtl; /* توجيه التطبيق لليمين */
+        direction: rtl; 
         text-align: right;
     }
 
-    /* --- تجميل الأزرار الرئيسية (Nasaq Style) --- */
+    /* --- تجميل الأزرار الرئيسية --- */
     div.stButton > button:first-child {
         background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
         color: white;
@@ -65,14 +61,13 @@ def inject_creative_css():
         box-shadow: 0 4px 6px rgba(14, 165, 233, 0.2);
     }
     
-    /* تأثيرات الماوس على الزراير */
     div.stButton > button:first-child:hover {
         background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
         transform: translateY(-3px) scale(1.02);
         box-shadow: 0 8px 15px rgba(14, 165, 233, 0.4);
     }
 
-    /* --- تجميل خانات الإدخال (Inputs) --- */
+    /* --- تجميل خانات الإدخال --- */
     .stTextInput>div>div>input, .stNumberInput>div>div>input, .stTextArea>div>div>textarea {
         border-radius: 12px;
         border: 1px solid #e2e8f0;
@@ -85,27 +80,22 @@ def inject_creative_css():
         box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
     }
 
-    /* --- تجميل الشريط الجانبي (Sidebar) --- */
+    /* --- تجميل الشريط الجانبي --- */
     [data-testid="stSidebar"] {
         background-color: #F8FAFC;
         border-left: 1px solid #e2e8f0;
     }
     
-    /* تجميل عناوين القوائم في السايدبار */
     [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
         color: #1e293b;
         font-weight: 600;
         padding: 10px;
         border-radius: 8px;
         transition: background 0.2s;
+        margin-bottom: 5px;
     }
     
-    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label[data-selected="true"] {
-        background-color: rgba(14, 165, 233, 0.1);
-        color: #0284c7 !important;
-    }
-
-    /* --- تجميل كروت البيانات (Metric/Cards) --- */
+    /* --- تجميل كروت البيانات --- */
     [data-testid="metric-container"] {
         background-color: #ffffff;
         border: 1px solid #e2e8f0;
@@ -114,7 +104,7 @@ def inject_creative_css():
         box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
 
-    /* --- تجميل شكل الفورم (Login box) --- */
+    /* --- تجميل صندوق تسجيل الدخول --- */
     [data-testid="stForm"] {
         background-color: #ffffff;
         padding: 30px;
@@ -123,15 +113,15 @@ def inject_creative_css():
         box-shadow: 0 10px 25px rgba(0,0,0,0.05);
     }
     
-    /* إخفاء شريط Streamlit المزعج في الأعلى */
-    header, footer {visibility: hidden;}
+    /* إخفاء شريط Streamlit العلوي */
+    header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# تشغيل الـ CSS الاحترافي
+# تشغيل التحسينات
 inject_creative_css()
 
-# ✅ الاتصال بقاعدة البيانات (كما هو)
+# ✅ الاتصال بقاعدة البيانات
 @st.cache_resource(ttl=60) 
 def init_connection():
     try:
@@ -150,19 +140,19 @@ if "logged_in" not in st.session_state:
     st.session_state.role = ""
     st.session_state.last_order_count = 0
 
-# --- شاشة تسجيل الدخول المطورة ---
+# --- شاشة تسجيل الدخول ---
 def login_screen():
     st.write("<br><br>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 1.2, 1])
     
     with col2:
-        # 🖼️ عرض اللوجو في المنتصف
+        # 🖼️ عرض اللوجو
         st.image(LOGO_URL, use_container_width=True)
         st.write("<br>", unsafe_allow_html=True)
         
         with st.form("login_form"):
-            st.markdown("<h3 style='text-align: center; color: #1e293b;'>تسجيل الدخول بوابة الإدارة</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='text-align: center; color: #1e293b;'>تسجيل الدخول - بوابة الإدارة</h3>", unsafe_allow_html=True)
             st.write("<br>", unsafe_allow_html=True)
             
             serial = st.text_input("👤 الرقم الوظيفي", placeholder="أدخل رقمك الوظيفي")
@@ -190,7 +180,7 @@ def login_screen():
                 else:
                     st.warning("⚠️ جاري تأمين الاتصال بالسيرفر..")
 
-# --- باقي كود البوابات كما هو ---
+# --- الإشعارات ---
 def check_notifications():
     if conn:
         try:
@@ -203,9 +193,10 @@ def check_notifications():
                 st.session_state.last_order_count = current_count
         except: pass
 
+# --- واجهة المدير ---
 def admin_portal():
     with st.sidebar:
-        # 🖼️ عرض اللوجو أعلى الشريط الجانبي
+        # 🖼️ عرض اللوجو
         st.image(LOGO_URL, use_container_width=True)
         st.divider()
         st.markdown(f"#### 👋 مرحباً يا مدير: **{st.session_state.emp_name}**")
@@ -234,9 +225,10 @@ def admin_portal():
     elif menu == "👨‍💼 إدارة الموظفين": render_employees(conn)
     elif menu == "⚙️ إعدادات الأقسام": render_categories(conn)
 
+# --- واجهة الموظفين ---
 def employee_portal():
     with st.sidebar:
-        # 🖼️ عرض اللوجو أعلى الشريط الجانبي للموظفين
+        # 🖼️ عرض اللوجو
         st.image(LOGO_URL, use_container_width=True)
         st.divider()
         st.markdown(f"#### 👋 مرحباً: **{st.session_state.emp_name}**")
