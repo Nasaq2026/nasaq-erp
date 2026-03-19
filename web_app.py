@@ -40,80 +40,59 @@ def load_system_pages():
         try:
             module = __import__(path, fromlist=[func])
             pages[key] = getattr(module, func)
-        except Exception as e:
-            pages[key] = lambda *args, **kwargs: st.error(f"❌ خطأ في تحميل {key}: {e}")
+        except Exception:
+            pages[key] = lambda *args, **kwargs: st.error(f"❌ خطأ في تحميل {key}")
     return pages
 
 PAGES = load_system_pages()
 
-# --- 4. ستايل NASAQ PRO الملكي (UI المطور والاحترافي) ---
+# --- 4. ستايل NASAQ PRO (الملكي المطور) ---
 def inject_nasq_pro_css():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
-    
     html, body, [data-testid="stSidebar"] *, .stMarkdown, p, h1, h2, h3 {
         font-family: 'Cairo', sans-serif !important;
         direction: rtl; text-align: right;
     }
-
-    /* الهيدر العلوي الاحترافي */
     .top-bar {
         display: flex; justify-content: space-between; align-items: center;
         padding: 10px 25px; background: rgba(15, 23, 42, 0.6);
         backdrop-filter: blur(12px); border-radius: 15px;
         border: 1px solid rgba(56, 189, 248, 0.2); margin-bottom: 25px;
     }
-    .top-bar-icons { display: flex; gap: 20px; align-items: center; }
-    .icon-wrapper { position: relative; font-size: 22px; cursor: pointer; transition: 0.3s; color: white; }
-    .icon-wrapper:hover { transform: scale(1.1); color: #38bdf8; }
     .badge-pro {
         position: absolute; top: -5px; right: -8px; background: #ef4444;
-        color: white; font-size: 10px; padding: 1px 5px; border-radius: 50%; border: 1px solid #0f172a;
+        color: white; font-size: 10px; padding: 1px 5px; border-radius: 50%;
     }
-
-    /* القائمة الجانبية الفخمة */
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important;
-        border-left: 1px solid rgba(56, 189, 248, 0.1);
-    }
-
-    /* أزرار القائمة التفاعلية */
-    div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label {
-        background-color: transparent !important; border: none !important;
-        padding: 12px 20px !important; border-radius: 10px !important;
-        margin-bottom: 4px !important; color: rgba(255, 255, 255, 0.7) !important;
-        transition: all 0.3s ease;
-    }
-    div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label[data-selected="true"] {
-        background: rgba(56, 189, 248, 0.15) !important;
-        color: #38bdf8 !important; font-weight: 700 !important;
-        border-right: 4px solid #38bdf8 !important;
-    }
+    [data-testid="stSidebar"] { background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important; }
     div[data-testid="stRadioButtonCustomObject"] { display: none !important; }
-
-    /* الإشعارات العائمة الزجاجية */
-    .glass-notif {
-        position: fixed; top: 100px; left: 20px; width: 300px;
-        background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(15px);
-        border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 15px;
-        padding: 15px; z-index: 9999; animation: slideIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
-    @keyframes slideIn { from { transform: translateX(-110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
     header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
 inject_nasq_pro_css()
 
-# --- 5. الاتصال بقاعدة البيانات ---
+# --- 5. الاتصال وإدارة الجداول تلقائياً ---
 @st.cache_resource(ttl=60)
 def init_connection():
     try:
         db_uri = "postgresql://postgres.jfqmcgicbdrhrtkhuwws:Nasaq268609@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres"
-        return psycopg2.connect(db_uri, sslmode="require", connect_timeout=15)
+        conn = psycopg2.connect(db_uri, sslmode="require", connect_timeout=15)
+        
+        # التأكد من وجود جدول المراسلات لمنع الـ UndefinedTable
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS internal_messages (
+                id SERIAL PRIMARY KEY,
+                sender_name TEXT,
+                sender_role TEXT,
+                message TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+        return conn
     except: return None
 
 conn = init_connection()
@@ -121,93 +100,56 @@ conn = init_connection()
 if "logged_in" not in st.session_state:
     st.session_state.update({"logged_in": False, "emp_name": "", "role": ""})
 
-# --- 6. مكونات الواجهة الاحترافية (الهيدر والإشعارات) ---
-def render_top_bar(msg_count=0, notif_count=0):
+# --- 6. وظائف الواجهة ---
+def render_top_bar(msg_count=0):
     col_empty, col_info = st.columns([2, 1.2])
     with col_info:
         st.markdown(f"""
             <div class="top-bar">
-                <div class="top-bar-icons">
-                    <div class="icon-wrapper">📩<span class="badge-pro">{msg_count}</span></div>
-                    <div class="icon-wrapper">🔔<span class="badge-pro">{notif_count}</span></div>
+                <div style="display: flex; gap: 20px;">
+                    <div style="position: relative;">📩<span class="badge-pro">{msg_count}</span></div>
+                    <div style="position: relative;">🔔<span class="badge-pro">!</span></div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 12px; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 15px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
                     <div style="text-align: left;">
-                        <div style="color: #38bdf8; font-weight: 800; font-size: 15px;">{st.session_state.emp_name}</div>
-                        <div style="color: #94a3b8; font-size: 11px;">{st.session_state.role} | متصل</div>
+                        <div style="color: #38bdf8; font-weight: 800; font-size: 14px;">{st.session_state.emp_name}</div>
+                        <div style="color: #94a3b8; font-size: 10px;">{st.session_state.role}</div>
                     </div>
-                    <div style="font-size: 32px; background: rgba(56,189,248,0.1); border-radius: 50%; padding: 5px;">👤</div>
+                    <div style="font-size: 24px;">👤</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
 
-def show_floating_notification(conn):
-    if st.session_state.role == "Admin" and conn:
-        try:
-            cursor = conn.cursor()
-            # جلب آخر طلب تم تحويله للتركيب أو اكتمل
-            cursor.execute("""
-                SELECT work_order_sn, current_stage, client_name 
-                FROM orders 
-                WHERE current_stage IN ('التركيب', 'مكتمل') 
-                ORDER BY id DESC LIMIT 1
-            """)
-            update = cursor.fetchone()
-            if update:
-                st.markdown(f"""
-                    <div class="glass-notif">
-                        <div style="display: flex; align-items: flex-start; gap: 12px;">
-                            <div style="font-size: 24px;">🚀</div>
-                            <div>
-                                <b style="color: #38bdf8; font-size: 15px;">تنبيه نشاط الموظفين</b><br>
-                                <div style="color: white; font-size: 13px; margin-top: 4px;">
-                                    أكمل القسم العمل على طلب العميل <b>{update[2]}</b> 
-                                    (رقم: {update[0]}) وهو الآن في مرحلة <span style="color:#10B981;">{update[1]}</span>.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
-        except: pass
-
-# --- 7. المراسلات الداخلية (قاعدة بيانات حقيقية) ---
-def render_internal_chat(conn):
+def render_sidebar_chat(conn):
     with st.sidebar:
         st.divider()
-        with st.expander("💬 غرفة المراسلات الداخلية", expanded=False):
-            if conn:
+        with st.expander("💬 المراسلات الداخلية", expanded=False):
+            try:
                 cursor = conn.cursor()
-                # جلب آخر 10 رسائل
-                cursor.execute("SELECT sender_name, message, timestamp FROM internal_messages ORDER BY id DESC LIMIT 10")
+                cursor.execute("SELECT sender_name, message FROM internal_messages ORDER BY id DESC LIMIT 5")
                 msgs = cursor.fetchall()
-                
                 for m in reversed(msgs):
-                    st.markdown(f"""
-                        <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 8px; margin-bottom: 5px; border-right: 3px solid #38bdf8;">
-                            <small style="color: #38bdf8;"><b>{m[0]}</b> • {m[2].strftime('%H:%M')}</small><br>
-                            <span style="font-size: 13px; color: #cbd5e1;">{m[1]}</span>
-                        </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(f"<small><b>{m[0]}:</b> {m[1]}</small>", unsafe_allow_html=True)
                 
-                with st.form("chat_form", clear_on_submit=True):
-                    text = st.text_input("", placeholder="اكتب رسالة للفريق...", label_visibility="collapsed")
-                    if st.form_submit_button("إرسال 🚀", width='stretch'):
-                        if text:
-                            cursor.execute("INSERT INTO internal_messages (sender_name, sender_role, message) VALUES (%s, %s, %s)",
-                                           (st.session_state.emp_name, st.session_state.role, text))
-                            conn.commit()
-                            st.rerun()
+                with st.form("chat", clear_on_submit=True):
+                    t = st.text_input("رسالة..", label_visibility="collapsed")
+                    if st.form_submit_button("🚀"):
+                        cursor.execute("INSERT INTO internal_messages (sender_name, sender_role, message) VALUES (%s, %s, %s)",
+                                       (st.session_state.emp_name, st.session_state.role, t))
+                        conn.commit()
+                        st.rerun()
+            except: conn.rollback()
 
-# --- 8. شاشة الدخول ---
+# --- 7. بوابات النظام ---
 def login_screen():
-    st.write("<br><br><br>", unsafe_allow_html=True)
+    st.write("<br><br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        st.markdown('<h1 style="color:#38bdf8; text-align:center; font-size: 40px; font-weight: 800;">NASAQ ERP</h1>', unsafe_allow_html=True)
+        st.markdown('<h1 style="color:#38bdf8; text-align:center;">NASAQ ERP</h1>', unsafe_allow_html=True)
         with st.form("login"):
             serial = st.text_input("رقم الموظف")
             password = st.text_input("كلمة المرور", type="password")
-            if st.form_submit_button("دخول آمن للمنظومة 🚀", width="stretch"):
+            if st.form_submit_button("دخول 🚀", use_container_width=True):
                 if conn:
                     cursor = conn.cursor()
                     cursor.execute("SELECT emp_name, role FROM employees WHERE serial_number = %s AND password = %s", (serial, password))
@@ -215,34 +157,29 @@ def login_screen():
                     if user:
                         st.session_state.update({"logged_in": True, "emp_name": user[0], "role": user[1]})
                         st.rerun()
-                    else: st.error("عذراً، بيانات الدخول غير صحيحة")
+                    else: st.error("خطأ")
 
-# --- 9. بوابات النظام ---
 def main_portal():
-    # جلب عدد الرسائل غير المقروءة (مثال)
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM internal_messages")
-    msg_count = cursor.fetchone()[0]
-    
-    # عرض العناصر العلوية والاشعارات
-    render_top_bar(msg_count=msg_count, notif_count=2)
-    show_floating_notification(conn)
-    render_internal_chat(conn)
+    msg_count = 0
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM internal_messages")
+        msg_count = cursor.fetchone()[0]
+    except:
+        conn.rollback() # إصلاح خطأ Transaction المنهارة
+
+    render_top_bar(msg_count)
+    render_sidebar_chat(conn)
     
     with st.sidebar:
-        st.markdown('<h2 style="color: #38bdf8; text-align: center; margin-bottom:0; font-weight:800;">NASAQ PRO</h2>', unsafe_allow_html=True)
-        st.markdown(f"<p style='text-align:center; color:#94a3b8; font-size:12px;'>نظام الإدارة المتكامل 2026</p>", unsafe_allow_html=True)
+        st.markdown('<h2 style="color: #38bdf8; text-align: center;">NASAQ PRO</h2>', unsafe_allow_html=True)
         st.divider()
-        
         if st.session_state.role == "Admin":
             options = ["📊 لوحة القيادة", "🤖 المساعد الذكي", "➕ طلب جديد", "📦 الورشة", "🧾 المالية", "👥 العملاء", "👨‍💼 الفريق", "⚙️ الإعدادات"]
         else:
             options = ["🏠 شاشتي الرئيسية", "🤖 المساعد الذكي"]
-            
         choice = st.radio("القائمة:", options, label_visibility="collapsed")
-        
-        st.divider()
-        if st.button("🚪 تسجيل الخروج من النظام", width="stretch"):
+        if st.button("🚪 خروج", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
 
@@ -251,20 +188,16 @@ def main_portal():
         "📦 الورشة": "orders", "🧾 المالية": "accounts", "👥 العملاء": "clients",
         "👨‍💼 الفريق": "employees", "⚙️ الإعدادات": "categories", "🏠 شاشتي الرئيسية": "my_screen"
     }
-    
     page_key = mapping.get(choice)
-    
-    if page_key == "ai_assistant":
-        PAGES["ai_assistant"]()
+    if page_key == "ai_assistant": PAGES["ai_assistant"]()
     elif page_key == "my_screen":
         role = st.session_state.role
         if role == "Designer": PAGES["designer"](conn, st.session_state.emp_name)
         elif role == "Technician": PAGES["tech"](conn, st.session_state.emp_name)
         elif role == "Installer": PAGES["installer"](conn, st.session_state.emp_name)
-    elif page_key:
-        PAGES[page_key](conn)
+    elif page_key: PAGES[page_key](conn)
 
-# --- 10. التشغيل ---
+# --- التشغيل ---
 if not st.session_state.logged_in:
     login_screen()
 else:
