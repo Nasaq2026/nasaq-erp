@@ -1,3 +1,4 @@
+# web_app.py
 import streamlit as st
 import psycopg2
 import warnings
@@ -6,28 +7,24 @@ import os
 import sys
 from PIL import Image
 
-# --- 🚀 1. حل جذري لمشاكل المسارات (Path Fix) ---
-# نضمن أن بايثون يرى مجلدات web_ui و utils مهما كانت بيئة التشغيل
+# --- 🚀 1. حل مشاكل المسارات ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-# --- 2. تهيئة الإعدادات الأساسية ---
+# --- 2. تهيئة الإعدادات ---
 warnings.simplefilter('ignore', UserWarning)
-
 st.set_page_config(
-    page_title="نَسق ERP | النظام السحابي المطور", 
+    page_title="نَسق ERP | الإدارة الذكية", 
     page_icon="🎯", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- 3. استيراد الشاشات بنظام الحماية (Safe Module Loading) ---
+# --- 3. استيراد الشاشات الآمن ---
 def load_system_pages():
     pages = {}
-    
-    # قائمة الوحدات البرمجية المطلوب استيرادها
-    modules_to_import = {
+    modules = {
         "dashboard": ("web_ui.dashboard", "render_dashboard"),
         "new_order": ("web_ui.new_order", "render_new_order"),
         "orders": ("web_ui.orders", "render_orders"),
@@ -37,135 +34,141 @@ def load_system_pages():
         "categories": ("web_ui.categories", "render_categories"),
         "ai_assistant": ("web_ui.ai_assistant", "render_ai_assistant"),
         "designer": ("web_ui.designer", "render_designer"),
-        "technician": ("web_ui.technician", "render_technician"),
+        "tech": ("web_ui.technician", "render_technician"),
         "installer": ("web_ui.installer", "render_installer")
     }
-
-    for key, (mod_path, func_name) in modules_to_import.items():
+    for key, (path, func) in modules.items():
         try:
-            # استيراد ديناميكي لتجنب KeyError الكلي
-            module = __import__(mod_path, fromlist=[func_name])
-            pages[key] = getattr(module, func_name)
-        except (ImportError, KeyError, AttributeError) as e:
-            # في حال فشل ملف، نضع دالة بديلة تعرض رسالة خطأ بدلاً من انهيار الموقع
-            pages[key] = lambda *args, **kwargs: st.error(f"⚠️ تعذر تحميل الشاشة ({key}). تأكد من وجود ملف {mod_path.split('.')[-1]}.py")
-            
+            module = __import__(path, fromlist=[func])
+            pages[key] = getattr(module, func)
+        except:
+            pages[key] = lambda *args: st.error(f"⚠️ الملف {key} مفقود")
     return pages
 
 PAGES = load_system_pages()
 
-# --- 4. حقن الـ CSS المطور (التصميم الزجاجي) ---
+# --- 4. ستايل "نَسق" الفخم (CSS المطور) ---
 def inject_creative_css():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+    
+    /* الخط العام والاتجاه */
     html, body, [data-testid="stSidebar"] *, .stMarkdown {
         font-family: 'Cairo', sans-serif !important;
         direction: rtl; text-align: right;
     }
-    [data-testid="stSidebar"] { background: #0c1221 !important; border-left: 1px solid rgba(56, 189, 248, 0.1); }
+
+    /* خلفية القائمة الجانبية */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #0c1221 0%, #1e293b 100%) !important;
+        border-left: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    /* تصميم أزرار القائمة (الراديو بوتون المطور) */
+    div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 12px 15px !important;
+        border-radius: 12px !important;
+        margin-bottom: 8px !important;
+        transition: all 0.3s ease;
+        color: white !important;
+    }
+
+    /* تأثير الحلق عند الاختيار */
+    div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label[data-selected="true"] {
+        background: rgba(56, 189, 248, 0.2) !important;
+        border-color: #38bdf8 !important;
+        box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
+    }
+
+    /* إخفاء الدائرة الأصلية للراديو */
+    div[data-testid="stRadioButtonCustomObject"] { display: none !important; }
+
+    /* أزرار الحفظ والخروج */
+    .stButton > button {
+        width: 100% !important;
+        border-radius: 10px !important;
+        font-weight: bold !important;
+        transition: 0.3s;
+    }
+    
+    /* إخفاء الهيدر الافتراضي */
     header {visibility: hidden;}
-    .stChatMessage { border-radius: 15px; margin-bottom: 10px; }
-    div.stButton > button { width: 100% !important; border-radius: 10px !important; }
     </style>
     """, unsafe_allow_html=True)
 
 inject_creative_css()
 
-# --- 5. الاتصال بقاعدة البيانات (بوابة Supabase) ---
-@st.cache_resource(ttl=60) 
+# --- 5. الاتصال وإدارة الجلسة ---
+@st.cache_resource(ttl=60)
 def init_connection():
     try:
         db_uri = "postgresql://postgres.jfqmcgicbdrhrtkhuwws:Nasaq268609@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres"
         return psycopg2.connect(db_uri, sslmode="require", connect_timeout=15)
-    except Exception as e:
-        st.error(f"❌ خطأ في الاتصال بقاعدة البيانات: {e}")
-        return None
+    except: return None
 
 conn = init_connection()
 
-# --- 6. إدارة الجلسة (Session State) ---
 if "logged_in" not in st.session_state:
-    st.session_state.update({
-        "logged_in": False,
-        "emp_name": "",
-        "role": "",
-        "last_order_count": 0
-    })
+    st.session_state.update({"logged_in": False, "emp_name": "", "role": ""})
 
-# --- 7. شاشة الدخول ---
+# --- 6. شاشات النظام ---
 def login_screen():
     st.write("<br><br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         st.markdown("<h1 style='text-align: center; color: #38bdf8;'>NASAQ ERP</h1>", unsafe_allow_html=True)
-        with st.form("login_form"):
-            st.markdown("<p style='text-align: center; color: #94a3b8;'>نظام الإدارة المتكامل</p>", unsafe_allow_html=True)
+        with st.form("login"):
             serial = st.text_input("رقم الموظف")
             password = st.text_input("كلمة المرور", type="password")
             if st.form_submit_button("دخول آمن 🚀"):
                 if conn:
-                    try:
-                        conn.rollback()
-                        cursor = conn.cursor()
-                        cursor.execute("SELECT emp_name, role FROM employees WHERE serial_number = %s AND password = %s", (serial, password))
-                        user = cursor.fetchone()
-                        if user:
-                            st.session_state.logged_in = True
-                            st.session_state.emp_name = user[0]
-                            st.session_state.role = user[1]
-                            st.rerun()
-                        else: st.error("بيانات الدخول غير صحيحة")
-                    except Exception as e: st.error(f"خطأ في الاستعلام: {e}")
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT emp_name, role FROM employees WHERE serial_number = %s AND password = %s", (serial, password))
+                    user = cursor.fetchone()
+                    if user:
+                        st.session_state.update({"logged_in": True, "emp_name": user[0], "role": user[1]})
+                        st.rerun()
+                    else: st.error("بيانات خاطئة")
 
-# --- 8. بوابات النظام ---
-def admin_portal():
+def main_portal():
     with st.sidebar:
-        st.markdown("<h2 style='color: #38bdf8; text-align: center;'>نَسق | المدير</h2>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='color: #38bdf8; text-align: center;'>نَسق | {st.session_state.role}</h2>", unsafe_allow_html=True)
+        st.write(f"<p style='text-align:center;'>مرحباً، {st.session_state.emp_name}</p>", unsafe_allow_html=True)
         st.divider()
-        menu_options = [
-            "📊 لوحة القيادة", "🤖 المساعد الذكي (Gemini)", "➕ طلب تشغيل جديد", 
-            "📦 إدارة الورشة", "🧾 المالية", "👥 العملاء", 
-            "👨‍💼 فريق العمل", "⚙️ الإعدادات"
-        ]
-        menu = st.radio("القائمة الرئيسية:", menu_options, label_visibility="collapsed")
-        st.divider()
-        if st.button("🚪 تسجيل الخروج"):
-            st.session_state.logged_in = False
-            st.rerun()
-
-    # التوجيه بناءً على الاختيار
-    if menu == "📊 لوحة القيادة": PAGES["dashboard"](conn)
-    elif menu == "🤖 المساعد الذكي (Gemini)": PAGES["ai_assistant"]()
-    elif menu == "➕ طلب تشغيل جديد": PAGES["new_order"](conn)
-    elif menu == "📦 إدارة الورشة": PAGES["orders"](conn)
-    elif menu == "🧾 المالية": PAGES["accounts"](conn)
-    elif menu == "👥 العملاء": PAGES["clients"](conn)
-    elif menu == "👨‍💼 فريق العمل": PAGES["employees"](conn)
-    elif menu == "⚙️ الإعدادات": PAGES["categories"](conn)
-
-def employee_portal():
-    with st.sidebar:
-        st.markdown(f"<div style='text-align:center; color:#38bdf8;'>👋 أهلاً {st.session_state.emp_name}</div>", unsafe_allow_html=True)
-        st.divider()
-        menu_emp = st.radio("القائمة:", ["🏠 الشاشة الرئيسية", "🤖 مساعد Gemini"])
+        
+        if st.session_state.role == "Admin":
+            options = ["📊 لوحة القيادة", "🤖 المساعد الذكي", "➕ طلب جديد", "📦 الورشة", "🧾 المالية", "👥 العملاء", "👨‍💼 الفريق", "⚙️ الإعدادات"]
+        else:
+            options = ["🏠 شاشتي", "🤖 المساعد الذكي"]
+            
+        choice = st.radio("القائمة:", options, label_visibility="collapsed")
+        
         st.divider()
         if st.button("🚪 خروج"):
             st.session_state.logged_in = False
             st.rerun()
-            
-    if menu_emp == "🤖 مساعد Gemini": PAGES["ai_assistant"]()
-    else:
+
+    # الربط البرمجي
+    mapping = {
+        "📊 لوحة القيادة": "dashboard", "🤖 المساعد الذكي": "ai_assistant", "➕ طلب جديد": "new_order",
+        "📦 الورشة": "orders", "🧾 المالية": "accounts", "👥 العملاء": "clients",
+        "👨‍💼 الفريق": "employees", "⚙️ الإعدادات": "categories", "🏠 شاشتي": "my_screen"
+    }
+    
+    page_key = mapping.get(choice)
+    if page_key == "my_screen":
         role = st.session_state.role
         if role == "Designer": PAGES["designer"](conn, st.session_state.emp_name)
-        elif role == "Technician": PAGES["technician"](conn, st.session_state.emp_name)
+        elif role == "Technician": PAGES["tech"](conn, st.session_state.emp_name)
         elif role == "Installer": PAGES["installer"](conn, st.session_state.emp_name)
+    elif page_key:
+        PAGES[page_key](conn if page_key != "ai_assistant" else None)
 
-# --- 9. التشغيل النهائي ---
+# --- التشغيل ---
 if not st.session_state.logged_in:
     login_screen()
 else:
-    if st.session_state.role == "Admin":
-        admin_portal()
-    else:
-        employee_portal()
+    main_portal()
