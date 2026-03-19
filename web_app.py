@@ -11,10 +11,10 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-# --- 2. تهيئة الإعدادات ---
+# --- 2. تهيئة الإعدادات الفخمة ---
 warnings.simplefilter('ignore', UserWarning)
 st.set_page_config(
-    page_title="Nasq ERP | PRO", 
+    page_title="Nasq ERP | الملكي 2026", 
     page_icon="🎯", 
     layout="wide",
     initial_sidebar_state="expanded"
@@ -41,71 +41,68 @@ def load_system_pages():
             module = __import__(path, fromlist=[func])
             pages[key] = getattr(module, func)
         except Exception:
-            pages[key] = lambda *args, **kwargs: st.error(f"❌ خطأ في تحميل {key}")
+            pages[key] = lambda *args: st.error(f"❌ ملف {key} يحتاج تحديث")
     return pages
 
 PAGES = load_system_pages()
 
-# --- 4. ستايل NASAQ PRO (تركيز على اللون الأبيض والوضوح) ---
+# --- 4. ستايل "نَسق PRO" (أبيض ناصع ومعايير 2026) ---
 def inject_nasq_royal_css():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
     
-    /* 1. الخطوط والاتجاه العام */
-    html, body, [data-testid="stSidebar"] *, .stMarkdown, p, h1, h2, h3, label, span {
+    /* الأساسيات والخطوط العربية الموضحة */
+    html, body, [data-testid="stSidebar"] *, .stMarkdown, p, h1, h2, h3, label, span, summary {
         font-family: 'Cairo', sans-serif !important;
         direction: rtl; text-align: right;
+        color: #ffffff !important; /* إجبار اللون الأبيض على كل شيء في القائمة */
     }
 
-    /* 2. القائمة الجانبية (خلفية داكنة ملكية) */
+    /* القائمة الجانبية الزجاجية الداكنة */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important;
         border-left: 1px solid rgba(56, 189, 248, 0.2);
     }
 
-    /* 3. تعديل نصوص القائمة (أبيض ناصع 100%) */
+    /* نصوص خيارات القائمة (أبيض ناصع 100%) */
     div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label p {
-        color: #ffffff !important; /* لون أبيض ناصع للنصوص */
+        color: #ffffff !important;
         font-size: 17px !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
         opacity: 1 !important;
     }
 
-    /* تنسيق الكرت الخاص بكل خيار */
+    /* تنسيق الكروت الخاص بالخيارات */
     div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label {
         background-color: rgba(255, 255, 255, 0.05) !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        padding: 14px 20px !important;
+        padding: 12px 20px !important;
         border-radius: 12px !important;
         margin-bottom: 8px !important;
         transition: 0.3s;
     }
 
-    /* تأثير الاختيار */
+    /* تمييز الخيار المختار بوهج أزرق */
     div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label[data-selected="true"] {
         background: rgba(56, 189, 248, 0.3) !important;
         border-color: #38bdf8 !important;
-        box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+        box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
     }
 
-    /* 4. تعديل نصوص الـ Expander (الشات الداخلي) */
-    .stExpander details summary p, .stExpander details summary span {
-        color: #ffffff !important; /* لون أبيض ناصع لعنوان الشات */
-        font-weight: 700 !important;
-        font-size: 16px !important;
-    }
-    
-    /* إخفاء الدائرة الافتراضية */
+    /* إخفاء دوائر الراديو */
     div[data-testid="stRadioButtonCustomObject"] { display: none !important; }
 
     header {visibility: hidden;}
+    
+    /* تعديل شكل الشات الداخلي */
+    .stExpander { background: rgba(255,255,255,0.03) !important; border-radius: 10px !important; }
     </style>
     """, unsafe_allow_html=True)
 
 inject_nasq_royal_css()
 
-# --- 5. الاتصال وإدارة الجلسة ---
+# --- 5. الاتصال بقاعدة البيانات ---
 @st.cache_resource(ttl=60)
 def init_connection():
     try:
@@ -123,7 +120,7 @@ conn = init_connection()
 if "logged_in" not in st.session_state:
     st.session_state.update({"logged_in": False, "emp_name": "", "role": ""})
 
-# --- 6. الهيدر العلوي المطور ---
+# --- 6. الهيدر العلوي (مع معالجة الأخطاء) ---
 def render_header_ui():
     col_logo, col_space, col_tools = st.columns([1, 2, 1.5])
     with col_tools:
@@ -135,7 +132,7 @@ def render_header_ui():
                     cursor = conn.cursor()
                     cursor.execute("SELECT work_order_sn, current_stage FROM orders ORDER BY id DESC LIMIT 3")
                     for row in cursor.fetchall():
-                        st.caption(f"الطلب {row[0]} -> {row[1]}")
+                        st.caption(f"📦 الطلب {row[0]} -> {row[1]}")
         with c2:
             with st.popover("📩"):
                 st.markdown("<b style='color:black;'>📩 البريد الداخلي</b>", unsafe_allow_html=True)
@@ -152,7 +149,7 @@ def render_header_ui():
                 </div>
             """, unsafe_allow_html=True)
 
-# --- 7. الشات الداخلي (أبيض وواضح) ---
+# --- 7. الشات الداخلي (محدث لـ 2026) ---
 def render_pro_chat(conn):
     with st.sidebar:
         st.divider()
@@ -173,7 +170,8 @@ def render_pro_chat(conn):
                     
                     with st.form("sidebar_chat", clear_on_submit=True):
                         t = st.text_input("", placeholder="اكتب هنا...", label_visibility="collapsed")
-                        if st.form_submit_button("إرسال 🚀", use_container_width=True):
+                        # ✅ تم التحديث لـ 2026 (width='stretch')
+                        if st.form_submit_button("إرسال 🚀", width='stretch'):
                             cursor.execute("INSERT INTO internal_messages (sender_name, sender_role, message) VALUES (%s, %s, %s)", 
                                            (st.session_state.emp_name, st.session_state.role, t))
                             conn.commit()
@@ -189,7 +187,8 @@ def main_portal():
         options = ["📊 لوحة القيادة", "🤖 المساعد الذكي", "➕ طلب جديد", "📦 الورشة", "🧾 المالية", "👥 العملاء", "👨‍💼 الفريق", "⚙️ الإعدادات"]
         choice = st.radio("القائمة:", options, label_visibility="collapsed")
         st.divider()
-        if st.button("🚪 تسجيل الخروج", use_container_width=True):
+        # ✅ تم التحديث لـ 2026 (width='stretch')
+        if st.button("🚪 تسجيل الخروج", width='stretch'):
             st.session_state.logged_in = False
             st.rerun()
 
@@ -202,7 +201,7 @@ def main_portal():
     if page_key == "ai_assistant": PAGES["ai_assistant"]()
     elif page_key: PAGES[page_key](conn)
 
-# التشغيل
+# --- 9. التشغيل ---
 if not st.session_state.logged_in:
     col1, col2, col3 = st.columns([1,1.2,1])
     with col2:
@@ -210,7 +209,8 @@ if not st.session_state.logged_in:
         with st.form("login_app"):
             s = st.text_input("الرقم الوظيفي")
             p = st.text_input("كلمة المرور", type="password")
-            if st.form_submit_button("دخول", use_container_width=True):
+            # ✅ تم التحديث لـ 2026 (width='stretch')
+            if st.form_submit_button("دخول", width='stretch'):
                 cursor = conn.cursor()
                 cursor.execute("SELECT emp_name, role FROM employees WHERE serial_number = %s AND password = %s", (s, p))
                 user = cursor.fetchone()
