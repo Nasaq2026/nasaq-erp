@@ -2,72 +2,32 @@
 import streamlit as st
 import os
 import sys
-import warnings
 import psycopg2
 from datetime import datetime
 
-# --- 1. إصلاح المسارات ---
+# --- 1. تهيئة المسارات ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-# --- 2. تهيئة الإعدادات (ثبات تام) ---
-warnings.simplefilter('ignore', UserWarning)
+# --- 2. إعدادات الصفحة الأساسية (بدون أي تعديلات CSS تخفي القائمة) ---
 st.set_page_config(
-    page_title="Nasq ERP | نَسق", 
+    page_title="نَسق ERP", 
     page_icon="🎯", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- 3. ستايل نَسق الاحترافي (إصلاح محاذاة اليمين) ---
-def inject_stable_ui():
-    st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
-    
-    /* ضبط الاتجاه العام للموقع بالكامل لليمين */
-    html, body, [data-testid="stAppViewContainer"], [data-testid="stSidebar"] {
-        direction: rtl;
-        text-align: right;
-    }
-
-    /* إجبار القائمة الجانبية على الثبات في أقصى اليمين */
-    [data-testid="stSidebar"] {
-        background-color: #0f172a !important;
-        position: fixed;
-        right: 0;
-    }
-
-    /* إصلاح الفراغات الناتجة عن المحاذاة */
-    [data-testid="stSidebarUserContent"] {
-        padding-top: 20px;
-    }
-
-    /* تنسيق النصوص والخطوط */
-    html, body, [data-testid="stSidebar"] *, .stMarkdown, p, h1, h2, h3, label {
+# --- 3. استايل بسيط جداً فقط للخط العربي ---
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+    html, body, [data-testid="stSidebar"] *, .stMarkdown {
         font-family: 'Cairo', sans-serif !important;
+        direction: rtl;
     }
-
-    /* تنسيق أزرار القائمة لتكون واضحة وعريضة */
-    div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label {
-        color: white !important;
-        background-color: rgba(255, 255, 255, 0.05) !important;
-        padding: 12px 15px !important;
-        border-radius: 10px !important;
-        margin-bottom: 8px !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        width: 100%;
-        display: block;
-    }
-
-    /* إخفاء الهيدر الافتراضي */
-    header {visibility: hidden;}
-    [data-testid="stHeader"] {background: rgba(0,0,0,0);}
-    </style>
-    """, unsafe_allow_html=True)
-
-inject_stable_ui()
+</style>
+""", unsafe_allow_html=True)
 
 # --- 4. الاتصال بقاعدة البيانات ---
 @st.cache_resource(ttl=60)
@@ -75,11 +35,12 @@ def init_connection():
     try:
         db_uri = "postgresql://postgres.jfqmcgicbdrhrtkhuwws:Nasaq268609@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres"
         return psycopg2.connect(db_uri, sslmode="require", connect_timeout=15)
-    except: return None
+    except:
+        return None
 
 conn = init_connection()
 
-# --- 5. تحميل الصفحات ---
+# --- 5. استيراد الموديولات ---
 def load_system_pages():
     pages = {}
     modules = {
@@ -96,7 +57,8 @@ def load_system_pages():
         try:
             module = __import__(path, fromlist=[func])
             pages[key] = getattr(module, func)
-        except: pages[key] = lambda *args, **kwargs: st.error(f"⚠️ الملف {key} يحتاج فحص")
+        except Exception:
+            pages[key] = lambda *args, **kwargs: st.error(f"⚠️ الملف {key} يحتاج تحديث")
     return pages
 
 PAGES = load_system_pages()
@@ -106,18 +68,15 @@ if "logged_in" not in st.session_state:
 
 # --- 6. شاشة الدخول ---
 def login_screen():
-    st.write("<br><br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         if os.path.exists("logo.png"):
-            st.image("logo.png", width=250)
-        else:
-            st.markdown("<h1 style='text-align:center; color:#38bdf8;'>NASAQ ERP</h1>", unsafe_allow_html=True)
-            
+            st.image("logo.png", width=200)
+        st.subheader("تسجيل الدخول")
         with st.form("login"):
             u = st.text_input("رقم الموظف")
             p = st.text_input("كلمة المرور", type="password")
-            if st.form_submit_button("دخول آمن", width='stretch'):
+            if st.form_submit_button("دخول", width='stretch'):
                 if conn:
                     cursor = conn.cursor()
                     cursor.execute("SELECT emp_name, role FROM employees WHERE serial_number = %s AND password = %s", (u, p))
@@ -125,18 +84,18 @@ def login_screen():
                     if user:
                         st.session_state.update({"logged_in": True, "emp_name": user[0], "role": user[1]})
                         st.rerun()
-                    else: st.error("بيانات الدخول غير صحيحة")
+                    else: st.error("بيانات خاطئة")
 
-# --- 7. بوابة النظام الرئيسية ---
+# --- 7. القائمة الجانبية والتحكم ---
 def main_portal():
     with st.sidebar:
-        # عرض اللوجو بشكل كامل في اليمين
+        # عرض اللوجو الأصلي
         if os.path.exists("logo.png"):
             st.image("logo.png", width='stretch')
         else:
-            st.markdown("<h2 style='color:#38bdf8; text-align:center;'>نَسق | NASAQ</h2>", unsafe_allow_html=True)
-        
-        st.markdown(f"<p style='text-align:center; color:#94a3b8; font-size:14px;'>مرحباً بك، {st.session_state.emp_name}</p>", unsafe_allow_html=True)
+            st.markdown("### نَسق للإعلان")
+            
+        st.write(f"مرحباً، {st.session_state.emp_name}")
         st.divider()
         
         if st.session_state.role == "Admin":
@@ -144,14 +103,14 @@ def main_portal():
         else:
             options = ["🏠 شاشتي الرئيسية", "🤖 المساعد الذكي"]
             
-        choice = st.radio("القائمة الرئيسية:", options, label_visibility="collapsed")
+        choice = st.radio("القائمة:", options)
         
         st.divider()
-        if st.button("🚪 تسجيل الخروج", width='stretch'):
+        if st.button("🚪 خروج", width='stretch'):
             st.session_state.logged_in = False
             st.rerun()
 
-    # ربط الصفحات والمحتوى
+    # التنفيذ
     mapping = {
         "📊 لوحة القيادة": "dashboard", "🤖 المساعد الذكي": "ai_assistant", "➕ طلب جديد": "new_order",
         "📦 الورشة": "orders", "🧾 المالية": "accounts", "👥 العملاء": "clients",
@@ -164,7 +123,7 @@ def main_portal():
     elif page_key:
         PAGES[page_key](conn)
 
-# التشغيل
+# --- 8. التشغيل ---
 if not st.session_state.logged_in:
     login_screen()
 else:
