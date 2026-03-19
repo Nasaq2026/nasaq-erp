@@ -11,10 +11,10 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-# --- 2. تهيئة الإعدادات الفخمة ---
+# --- 2. تهيئة الإعدادات الفخمة 2026 ---
 warnings.simplefilter('ignore', UserWarning)
 st.set_page_config(
-    page_title="Nasq ERP | الملكي 2026", 
+    page_title="Nasq ERP | الملكي PRO", 
     page_icon="🎯", 
     layout="wide",
     initial_sidebar_state="expanded"
@@ -41,74 +41,63 @@ def load_system_pages():
             module = __import__(path, fromlist=[func])
             pages[key] = getattr(module, func)
         except Exception:
-            pages[key] = lambda *args: st.error(f"❌ ملف {key} يحتاج تحديث")
+            pages[key] = lambda *args, **kwargs: st.error(f"❌ خطأ في تحميل {key}")
     return pages
 
 PAGES = load_system_pages()
 
-# --- 4. ستايل "نَسق PRO" (أبيض ناصع ومعايير 2026) ---
+# --- 4. ستايل نَسق PRO (أبيض ناصع + زجاجي) ---
 def inject_nasq_royal_css():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
     
-    /* الأساسيات والخطوط العربية الموضحة */
+    /* الخطوط والوضوح التام */
     html, body, [data-testid="stSidebar"] *, .stMarkdown, p, h1, h2, h3, label, span, summary {
         font-family: 'Cairo', sans-serif !important;
         direction: rtl; text-align: right;
-        color: #ffffff !important; /* إجبار اللون الأبيض على كل شيء في القائمة */
+        color: #ffffff !important; /* نصوص بيضاء ناصعة */
     }
 
-    /* القائمة الجانبية الزجاجية الداكنة */
+    /* القائمة الجانبية الملكية */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important;
         border-left: 1px solid rgba(56, 189, 248, 0.2);
     }
 
-    /* نصوص خيارات القائمة (أبيض ناصع 100%) */
-    div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label p {
-        color: #ffffff !important;
-        font-size: 17px !important;
-        font-weight: 700 !important;
-        opacity: 1 !important;
-    }
-
-    /* تنسيق الكروت الخاص بالخيارات */
+    /* أزرار القائمة المضيئة */
     div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label {
         background-color: rgba(255, 255, 255, 0.05) !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
         padding: 12px 20px !important;
         border-radius: 12px !important;
         margin-bottom: 8px !important;
-        transition: 0.3s;
+        transition: 0.3s ease;
     }
 
-    /* تمييز الخيار المختار بوهج أزرق */
     div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label[data-selected="true"] {
         background: rgba(56, 189, 248, 0.3) !important;
         border-color: #38bdf8 !important;
-        box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+        box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
     }
 
-    /* إخفاء دوائر الراديو */
+    /* إخفاء الدوائر */
     div[data-testid="stRadioButtonCustomObject"] { display: none !important; }
 
+    /* الهيدر العلوي */
     header {visibility: hidden;}
-    
-    /* تعديل شكل الشات الداخلي */
-    .stExpander { background: rgba(255,255,255,0.03) !important; border-radius: 10px !important; }
+    .stApp { background-color: #0f172a; } /* خلفية داكنة متناسقة */
     </style>
     """, unsafe_allow_html=True)
 
 inject_nasq_royal_css()
 
-# --- 5. الاتصال بقاعدة البيانات ---
+# --- 5. الاتصال وإدارة الجلسة ---
 @st.cache_resource(ttl=60)
 def init_connection():
     try:
         db_uri = "postgresql://postgres.jfqmcgicbdrhrtkhuwws:Nasaq268609@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres"
         conn = psycopg2.connect(db_uri, sslmode="require", connect_timeout=15)
-        # التأكد من جدول الرسائل
         cursor = conn.cursor()
         cursor.execute("CREATE TABLE IF NOT EXISTS internal_messages (id SERIAL, sender_name TEXT, sender_role TEXT, message TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
         conn.commit()
@@ -120,22 +109,22 @@ conn = init_connection()
 if "logged_in" not in st.session_state:
     st.session_state.update({"logged_in": False, "emp_name": "", "role": ""})
 
-# --- 6. الهيدر العلوي (مع معالجة الأخطاء) ---
+# --- 6. الهيدر المطور (أزرار زجاجية حقيقية) ---
 def render_header_ui():
     col_logo, col_space, col_tools = st.columns([1, 2, 1.5])
     with col_tools:
         c1, c2, c3 = st.columns([1, 1, 2])
         with c1:
             with st.popover("🔔"):
-                st.markdown("<b style='color:black;'>🔔 التنبيهات</b>", unsafe_allow_html=True)
+                st.markdown("<b style='color:#0f172a;'>🔔 التنبيهات الأخيرة</b>", unsafe_allow_html=True)
                 if conn:
                     cursor = conn.cursor()
                     cursor.execute("SELECT work_order_sn, current_stage FROM orders ORDER BY id DESC LIMIT 3")
                     for row in cursor.fetchall():
-                        st.caption(f"📦 الطلب {row[0]} -> {row[1]}")
+                        st.caption(f"الطلب {row[0]} -> {row[1]}")
         with c2:
             with st.popover("📩"):
-                st.markdown("<b style='color:black;'>📩 البريد الداخلي</b>", unsafe_allow_html=True)
+                st.markdown("<b style='color:#0f172a;'>📩 البريد الداخلي</b>", unsafe_allow_html=True)
                 if conn:
                     cursor = conn.cursor()
                     cursor.execute("SELECT sender_name, message FROM internal_messages ORDER BY id DESC LIMIT 3")
@@ -143,13 +132,13 @@ def render_header_ui():
                         st.info(f"**{row[0]}:** {row[1]}")
         with c3:
             st.markdown(f"""
-                <div style="background:white; padding:8px 15px; border-radius:10px; border:1px solid #ddd; display:flex; align-items:center; gap:10px;">
-                    <div style="text-align:left"><div style="font-size:14px; font-weight:bold; color:#1e293b;">{st.session_state.emp_name}</div><div style="font-size:10px; color:#64748b;">المدير العام</div></div>
+                <div style="background:rgba(255,255,255,0.1); padding:8px 15px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; gap:10px;">
+                    <div style="text-align:left"><div style="font-size:14px; font-weight:bold; color:#ffffff;">{st.session_state.emp_name}</div><div style="font-size:10px; color:#38bdf8;">المدير العام</div></div>
                     <div style="font-size:24px;">👤</div>
                 </div>
             """, unsafe_allow_html=True)
 
-# --- 7. الشات الداخلي (محدث لـ 2026) ---
+# --- 7. الشات الداخلي (تم حل مشكلة الـ label) ---
 def render_pro_chat(conn):
     with st.sidebar:
         st.divider()
@@ -161,16 +150,11 @@ def render_pro_chat(conn):
                     msgs = cursor.fetchall()
                     for m in reversed(msgs):
                         color = "#38bdf8" if m[2] == "Admin" else "#ffffff"
-                        st.markdown(f"""
-                            <div style="border-bottom:1px solid rgba(255,255,255,0.1); padding:5px 0;">
-                                <small style="color:{color}; font-weight:bold;">{m[0]}:</small>
-                                <div style="color:#ffffff; font-size:13px;">{m[1]}</div>
-                            </div>
-                        """, unsafe_allow_html=True)
+                        st.markdown(f"<div style='border-bottom:1px solid rgba(255,255,255,0.1); padding:5px 0;'><small style='color:{color}; font-weight:bold;'>{m[0]}:</small><div style='color:#ffffff; font-size:13px;'>{m[1]}</div></div>", unsafe_allow_html=True)
                     
-                    with st.form("sidebar_chat", clear_on_submit=True):
-                        t = st.text_input("", placeholder="اكتب هنا...", label_visibility="collapsed")
-                        # ✅ تم التحديث لـ 2026 (width='stretch')
+                    with st.form("sidebar_chat_form", clear_on_submit=True):
+                        # ✅ تم إصلاح التحذير هنا بإضافة عنوان "الرسالة" وإخفائه
+                        t = st.text_input("الرسالة", placeholder="اكتب هنا...", label_visibility="collapsed")
                         if st.form_submit_button("إرسال 🚀", width='stretch'):
                             cursor.execute("INSERT INTO internal_messages (sender_name, sender_role, message) VALUES (%s, %s, %s)", 
                                            (st.session_state.emp_name, st.session_state.role, t))
@@ -185,9 +169,8 @@ def main_portal():
     with st.sidebar:
         st.markdown('<h2 style="color:#ffffff; text-align:center; font-weight:800; margin-bottom:20px;">NASAQ PRO</h2>', unsafe_allow_html=True)
         options = ["📊 لوحة القيادة", "🤖 المساعد الذكي", "➕ طلب جديد", "📦 الورشة", "🧾 المالية", "👥 العملاء", "👨‍💼 الفريق", "⚙️ الإعدادات"]
-        choice = st.radio("القائمة:", options, label_visibility="collapsed")
+        choice = st.radio("القائمة الرئيسية", options, label_visibility="collapsed")
         st.divider()
-        # ✅ تم التحديث لـ 2026 (width='stretch')
         if st.button("🚪 تسجيل الخروج", width='stretch'):
             st.session_state.logged_in = False
             st.rerun()
@@ -205,17 +188,17 @@ def main_portal():
 if not st.session_state.logged_in:
     col1, col2, col3 = st.columns([1,1.2,1])
     with col2:
-        st.markdown("<h1 style='text-align:center;'>دخول نَسق</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align:center; color:white;'>دخول نَسق</h1>", unsafe_allow_html=True)
         with st.form("login_app"):
-            s = st.text_input("الرقم الوظيفي")
+            s = st.text_input("الرقم الوظيفي", placeholder="A-1001")
             p = st.text_input("كلمة المرور", type="password")
-            # ✅ تم التحديث لـ 2026 (width='stretch')
             if st.form_submit_button("دخول", width='stretch'):
-                cursor = conn.cursor()
-                cursor.execute("SELECT emp_name, role FROM employees WHERE serial_number = %s AND password = %s", (s, p))
-                user = cursor.fetchone()
-                if user:
-                    st.session_state.update({"logged_in": True, "emp_name": user[0], "role": user[1]})
-                    st.rerun()
+                if conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT emp_name, role FROM employees WHERE serial_number = %s AND password = %s", (s, p))
+                    user = cursor.fetchone()
+                    if user:
+                        st.session_state.update({"logged_in": True, "emp_name": user[0], "role": user[1]})
+                        st.rerun()
 else:
     main_portal()
