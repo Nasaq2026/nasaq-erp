@@ -3,7 +3,6 @@ import streamlit as st
 import os
 import sys
 import warnings
-import json
 import psycopg2
 from datetime import datetime
 
@@ -41,88 +40,79 @@ def load_system_pages():
         try:
             module = __import__(path, fromlist=[func])
             pages[key] = getattr(module, func)
-        except Exception as e:
+        except Exception:
             pages[key] = lambda *args, **kwargs: st.error(f"❌ خطأ في تحميل {key}")
     return pages
 
 PAGES = load_system_pages()
 
-# --- 4. ستايل NASAQ الملكي (CSS المطور والاحترافي) ---
+# --- 4. ستايل NASAQ الملكي (UI المطور والاحترافي) ---
 def inject_nasq_royal_css():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
     
-    /* 1. الأساسيات والخطوط */
+    /* الأساسيات والخطوط */
     html, body, [data-testid="stSidebar"] *, .stMarkdown, p, h1, h2, h3 {
         font-family: 'Cairo', sans-serif !important;
         direction: rtl; text-align: right;
     }
 
-    /* 2. القائمة الجانبية (تصميم زجاجي داكن فخم) */
+    /* القائمة الجانبية (تصميم زجاجي داكن فخم) */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important;
-        border-left: 1px solid rgba(56, 189, 248, 0.1);
-        min-width: 300px !important;
+        border-left: 1px solid rgba(56, 189, 248, 0.15);
     }
 
-    /* 3. اللوجو والعنوان */
+    /* اللوجو والعنوان */
     .nasq-header {
         color: #38bdf8;
-        font-size: 28px;
+        font-size: 32px;
         font-weight: 800;
         text-align: center;
         padding: 20px 0;
-        letter-spacing: 1px;
+        text-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
     }
 
-    /* 4. تصميم أزرار القائمة (مثل الصورة الاحترافية) */
+    /* تصميم أزرار القائمة الاحترافي */
     div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label {
         background-color: transparent !important;
         border: none !important;
-        padding: 14px 25px !important;
-        border-radius: 12px !important;
+        padding: 12px 25px !important;
+        border-radius: 10px !important;
         margin-bottom: 5px !important;
-        color: rgba(255, 255, 255, 0.8) !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        font-size: 16px !important;
+        color: rgba(255, 255, 255, 0.7) !important;
+        transition: all 0.3s ease;
+        cursor: pointer;
     }
 
-    /* تأثير الاختيار (Glow Effect) */
+    /* تأثير الاختيار (Active Tab) */
     div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label[data-selected="true"] {
-        background: rgba(56, 189, 248, 0.12) !important;
+        background: rgba(56, 189, 248, 0.15) !important;
         color: #38bdf8 !important;
         font-weight: 700 !important;
-        border-right: 4px solid #38bdf8 !important;
-        box-shadow: -5px 0 15px rgba(56, 189, 248, 0.1);
+        border-right: 5px solid #38bdf8 !important;
     }
 
-    /* إخفاء الدائرة الافتراضية للراديو */
+    /* إخفاء الدائرة الافتراضية */
     div[data-testid="stRadioButtonCustomObject"] { display: none !important; }
 
-    /* 5. الأزرار (خروج) */
+    /* أزرار الخروج المحدثة لـ 2026 */
     .stButton > button {
         background-color: rgba(255, 255, 255, 0.05) !important;
         color: white !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 10px !important;
-        padding: 10px !important;
+        border-radius: 8px !important;
         font-weight: 600 !important;
     }
-    .stButton > button:hover {
-        border-color: #ef4444 !important;
-        background: rgba(239, 68, 68, 0.1) !important;
-        color: #ef4444 !important;
-    }
-
-    /* إخفاء الهيدر */
+    
     header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
 inject_nasq_royal_css()
 
-# --- 5. الاتصال وإدارة الجلسة ---
+# --- 5. الاتصال بقاعدة البيانات ---
 @st.cache_resource(ttl=60)
 def init_connection():
     try:
@@ -135,7 +125,7 @@ conn = init_connection()
 if "logged_in" not in st.session_state:
     st.session_state.update({"logged_in": False, "emp_name": "", "role": ""})
 
-# --- 6. بوابات النظام ---
+# --- 6. شاشة الدخول ---
 def login_screen():
     st.write("<br><br><br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1, 1])
@@ -144,7 +134,8 @@ def login_screen():
         with st.form("login"):
             serial = st.text_input("رقم الموظف")
             password = st.text_input("كلمة المرور", type="password")
-            if st.form_submit_button("دخول آمن 🚀", use_container_width=True):
+            # تحديث عرض الزر حسب معايير 2026
+            if st.form_submit_button("دخول آمن 🚀", width="stretch"):
                 if conn:
                     cursor = conn.cursor()
                     cursor.execute("SELECT emp_name, role FROM employees WHERE serial_number = %s AND password = %s", (serial, password))
@@ -154,10 +145,11 @@ def login_screen():
                         st.rerun()
                     else: st.error("بيانات خاطئة")
 
+# --- 7. بوابات النظام ---
 def main_portal():
     with st.sidebar:
         st.markdown('<div class="nasq-header">NASAQ ERP</div>', unsafe_allow_html=True)
-        st.markdown(f"<p style='text-align:center; color: #94a3b8;'>أهلاً بك، {st.session_state.emp_name}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align:center; color:#94a3b8;'>أهلاً بك، {st.session_state.emp_name}</p>", unsafe_allow_html=True)
         st.divider()
         
         if st.session_state.role == "Admin":
@@ -168,11 +160,10 @@ def main_portal():
         choice = st.radio("القائمة:", options, label_visibility="collapsed")
         
         st.divider()
-        if st.button("🚪 تسجيل الخروج", use_container_width=True):
+        if st.button("🚪 تسجيل الخروج", width="stretch"):
             st.session_state.logged_in = False
             st.rerun()
 
-    # --- 7. منطق التنقل المصلح (إصلاح الـ TypeError) ---
     mapping = {
         "📊 لوحة القيادة": "dashboard", "🤖 المساعد الذكي": "ai_assistant", "➕ طلب جديد": "new_order",
         "📦 الورشة": "orders", "🧾 المالية": "accounts", "👥 العملاء": "clients",
@@ -181,8 +172,9 @@ def main_portal():
     
     page_key = mapping.get(choice)
     
+    # --- الحل الجذري للخطأ (الاستدعاء الصحيح) ---
     if page_key == "ai_assistant":
-        PAGES["ai_assistant"]() # استدعاء بدون تمرير 'conn'
+        PAGES["ai_assistant"]() # استدعاء بدون تمرير أي متغير (يصلح الـ TypeError)
     elif page_key == "my_screen":
         role = st.session_state.role
         if role == "Designer": PAGES["designer"](conn, st.session_state.emp_name)
@@ -191,7 +183,7 @@ def main_portal():
     elif page_key:
         PAGES[page_key](conn)
 
-# --- التشغيل ---
+# --- 8. التشغيل ---
 if not st.session_state.logged_in:
     login_screen()
 else:
