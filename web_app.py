@@ -14,13 +14,13 @@ if current_dir not in sys.path:
 # --- 2. تهيئة الإعدادات ---
 warnings.simplefilter('ignore', UserWarning)
 st.set_page_config(
-    page_title="Nasq ERP | Pro UI", 
+    page_title="Nasq ERP | PRO UI", 
     page_icon="🎯", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- 3. تحميل الشاشات بأمان ---
+# --- 3. استيراد الشاشات بأمان ---
 def load_system_pages():
     pages = {}
     modules = {
@@ -41,12 +41,12 @@ def load_system_pages():
             module = __import__(path, fromlist=[func])
             pages[key] = getattr(module, func)
         except Exception:
-            pages[key] = lambda *args, **kwargs: st.error(f"❌ خطأ في تحميل {key}")
+            pages[key] = lambda *args, **kwargs: st.error(f"❌ خطأ في تحميل شاشة {key}")
     return pages
 
 PAGES = load_system_pages()
 
-# --- 4. ستايل NASAQ PRO (الملكي المطور) ---
+# --- 4. ستايل نَسق الملكي (CSS المطور) ---
 def inject_nasq_pro_css():
     st.markdown("""
     <style>
@@ -66,56 +66,57 @@ def inject_nasq_pro_css():
         color: white; font-size: 10px; padding: 1px 5px; border-radius: 50%;
     }
     [data-testid="stSidebar"] { background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important; }
-    div[data-testid="stRadioButtonCustomObject"] { display: none !important; }
     header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
 inject_nasq_pro_css()
 
-# --- 5. الاتصال وإدارة الجداول تلقائياً ---
+# --- 5. الاتصال وإدارة الجداول (الحل الجذري للخطأ) ---
 @st.cache_resource(ttl=60)
 def init_connection():
     try:
         db_uri = "postgresql://postgres.jfqmcgicbdrhrtkhuwws:Nasaq268609@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres"
         conn = psycopg2.connect(db_uri, sslmode="require", connect_timeout=15)
         
-        # التأكد من وجود جدول المراسلات لمنع الـ UndefinedTable
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS internal_messages (
-                id SERIAL PRIMARY KEY,
-                sender_name TEXT,
-                sender_role TEXT,
-                message TEXT,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.commit()
+        # إنشاء جدول المراسلات فوراً إذا لم يكن موجوداً
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS internal_messages (
+                    id SERIAL PRIMARY KEY,
+                    sender_name TEXT,
+                    sender_role TEXT,
+                    message TEXT,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
         return conn
-    except: return None
+    except Exception as e:
+        st.error(f"❌ فشل الاتصال بقاعدة البيانات: {e}")
+        return None
 
 conn = init_connection()
 
 if "logged_in" not in st.session_state:
     st.session_state.update({"logged_in": False, "emp_name": "", "role": ""})
 
-# --- 6. وظائف الواجهة ---
+# --- 6. وظائف الواجهة الموحدة ---
 def render_top_bar(msg_count=0):
     col_empty, col_info = st.columns([2, 1.2])
     with col_info:
         st.markdown(f"""
             <div class="top-bar">
                 <div style="display: flex; gap: 20px;">
-                    <div style="position: relative;">📩<span class="badge-pro">{msg_count}</span></div>
-                    <div style="position: relative;">🔔<span class="badge-pro">!</span></div>
+                    <div style="position: relative; font-size: 20px;">📩<span class="badge-pro">{msg_count}</span></div>
+                    <div style="position: relative; font-size: 20px;">🔔<span class="badge-pro">!</span></div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <div style="text-align: left;">
                         <div style="color: #38bdf8; font-weight: 800; font-size: 14px;">{st.session_state.emp_name}</div>
-                        <div style="color: #94a3b8; font-size: 10px;">{st.session_state.role}</div>
+                        <div style="color: #94a3b8; font-size: 10px;">{st.session_state.role} | متصل</div>
                     </div>
-                    <div style="font-size: 24px;">👤</div>
+                    <div style="font-size: 24px; background: rgba(56,189,248,0.1); border-radius: 50%; padding: 5px;">👤</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -129,27 +130,28 @@ def render_sidebar_chat(conn):
                 cursor.execute("SELECT sender_name, message FROM internal_messages ORDER BY id DESC LIMIT 5")
                 msgs = cursor.fetchall()
                 for m in reversed(msgs):
-                    st.markdown(f"<small><b>{m[0]}:</b> {m[1]}</small>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='font-size:12px; margin-bottom:5px;'><b>{m[0]}:</b> {m[1]}</div>", unsafe_allow_html=True)
                 
-                with st.form("chat", clear_on_submit=True):
+                with st.form("chat_sidebar", clear_on_submit=True):
                     t = st.text_input("رسالة..", label_visibility="collapsed")
-                    if st.form_submit_button("🚀"):
+                    if st.form_submit_button("إرسال 🚀", width='stretch'):
                         cursor.execute("INSERT INTO internal_messages (sender_name, sender_role, message) VALUES (%s, %s, %s)",
                                        (st.session_state.emp_name, st.session_state.role, t))
                         conn.commit()
                         st.rerun()
-            except: conn.rollback()
+            except: 
+                if conn: conn.rollback()
 
 # --- 7. بوابات النظام ---
 def login_screen():
     st.write("<br><br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        st.markdown('<h1 style="color:#38bdf8; text-align:center;">NASAQ ERP</h1>', unsafe_allow_html=True)
+        st.markdown('<h1 style="color:#38bdf8; text-align:center; font-weight:800;">NASAQ ERP</h1>', unsafe_allow_html=True)
         with st.form("login"):
             serial = st.text_input("رقم الموظف")
             password = st.text_input("كلمة المرور", type="password")
-            if st.form_submit_button("دخول 🚀", use_container_width=True):
+            if st.form_submit_button("دخول آمن 🚀", width='stretch'):
                 if conn:
                     cursor = conn.cursor()
                     cursor.execute("SELECT emp_name, role FROM employees WHERE serial_number = %s AND password = %s", (serial, password))
@@ -157,29 +159,30 @@ def login_screen():
                     if user:
                         st.session_state.update({"logged_in": True, "emp_name": user[0], "role": user[1]})
                         st.rerun()
-                    else: st.error("خطأ")
+                    else: st.error("بيانات الدخول غير صحيحة")
 
 def main_portal():
     msg_count = 0
-    try:
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM internal_messages")
-        msg_count = cursor.fetchone()[0]
-    except:
-        conn.rollback() # إصلاح خطأ Transaction المنهارة
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM internal_messages")
+            msg_count = cursor.fetchone()[0]
+        except:
+            conn.rollback() # حل مشكلة Transaction aborted
 
     render_top_bar(msg_count)
     render_sidebar_chat(conn)
     
     with st.sidebar:
-        st.markdown('<h2 style="color: #38bdf8; text-align: center;">NASAQ PRO</h2>', unsafe_allow_html=True)
+        st.markdown('<h2 style="color: #38bdf8; text-align: center; font-weight:800; margin-bottom:0;">NASAQ PRO</h2>', unsafe_allow_html=True)
         st.divider()
         if st.session_state.role == "Admin":
             options = ["📊 لوحة القيادة", "🤖 المساعد الذكي", "➕ طلب جديد", "📦 الورشة", "🧾 المالية", "👥 العملاء", "👨‍💼 الفريق", "⚙️ الإعدادات"]
         else:
             options = ["🏠 شاشتي الرئيسية", "🤖 المساعد الذكي"]
         choice = st.radio("القائمة:", options, label_visibility="collapsed")
-        if st.button("🚪 خروج", use_container_width=True):
+        if st.button("🚪 تسجيل الخروج", width='stretch'):
             st.session_state.logged_in = False
             st.rerun()
 
@@ -197,7 +200,7 @@ def main_portal():
         elif role == "Installer": PAGES["installer"](conn, st.session_state.emp_name)
     elif page_key: PAGES[page_key](conn)
 
-# --- التشغيل ---
+# --- 8. التشغيل ---
 if not st.session_state.logged_in:
     login_screen()
 else:
