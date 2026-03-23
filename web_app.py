@@ -10,90 +10,95 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-# منع التحذيرات المزعجة
+# تجاهل التحذيرات غير الهامة
 warnings.simplefilter('ignore', UserWarning)
 
-# إعدادات الصفحة الرئيسية
 st.set_page_config(
-    page_title="نَسق ERP | الإدارة الذكية للمطبوعات", 
+    page_title="نَسق ERP | الإدارة الذكية", 
     page_icon="🎯", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- 2. ستايل "نَسق" الفخم (تم تنظيفه لضمان عدم حدوث أخطاء إزاحة) ---
-NASQ_CSS = """
+# --- 2. ستايل نَسق الاحترافي المطور (Master CSS) ---
+NASQ_UI_THEME = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
 
+/* ضبط الاتجاه العام والخطوط */
 html, body, [data-testid="stAppViewContainer"], [data-testid="stSidebar"] {
     direction: rtl;
     text-align: right;
     font-family: 'Cairo', sans-serif !important;
 }
 
-/* ستايل القائمة الجانبية */
+/* تصميم القائمة الجانبية الفاخرة */
 [data-testid="stSidebar"] {
-    background-color: #0f172a !important;
+    background-color: #0b1329 !important; /* لون كحلي داكن ملكي */
     border-left: 1px solid #1e293b;
 }
 
-/* تنسيق الخيارات في القائمة الجانبية */
+/* تمديد وتنسيق الأزرار (Radio buttons) جهة اليسار بالكامل */
 div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 0 10px;
+    gap: 10px;
+    padding: 0 12px;
 }
 
 div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label {
-    color: white !important;
-    background-color: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    padding: 15px 20px !important;
+    color: #e2e8f0 !important;
+    background-color: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    padding: 14px 18px !important;
     border-radius: 12px !important;
     width: 100% !important;
     display: flex !important;
     align-items: center;
-    transition: 0.4s all cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     margin: 0 !important;
     cursor: pointer;
 }
 
-/* تأثير عند اختيار العنصر */
-div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label[data-selected="true"] {
-    background-color: #38bdf8 !important;
-    color: #0f172a !important;
-    font-weight: 800 !important;
-    box-shadow: 0 10px 20px rgba(56, 189, 248, 0.4);
-    transform: scale(1.02);
+/* تأثير الإضاءة والظل عند تمرير الماوس */
+div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label:hover {
+    background-color: rgba(56, 189, 248, 0.1) !important;
+    border-color: rgba(56, 189, 248, 0.4) !important;
+    transform: translateX(-3px); /* حركة انزلاقية خفيفة لليسار */
 }
 
-/* إخفاء الهيدر الافتراضي لستريمليت */
+/* تمييز الخيار النشط (Active) */
+div[data-testid="stSidebarUserContent"] .stRadio div[role="radiogroup"] label[data-selected="true"] {
+    background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%) !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    box-shadow: 0 8px 25px rgba(56, 189, 248, 0.3);
+}
+
+/* إخفاء الزوائد الافتراضية في Streamlit لتبدو كبرنامج حقيقي */
 header {visibility: hidden;}
 footer {visibility: hidden;}
+[data-testid="stHeader"] {background: rgba(0,0,0,0);}
 </style>
 """
-st.markdown(NASQ_CSS, unsafe_allow_html=True)
+st.markdown(NASQ_UI_THEME, unsafe_allow_html=True)
 
-# --- 3. إدارة الاتصال بقاعدة البيانات (Supabase) ---
-@st.cache_resource(ttl=300)
+
+# --- 3. إدارة الاتصال بقاعدة البيانات (DB) ---
+@st.cache_resource(ttl=60)
 def init_connection():
     try:
-        # بيانات الربط الخاصة بقاعدة بيانات نَسق
         db_uri = "postgresql://postgres.jfqmcgicbdrhrtkhuwws:Nasaq268609@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres"
         return psycopg2.connect(db_uri, sslmode="require", connect_timeout=15)
-    except Exception as e:
-        st.error(f"❌ فشل الاتصال بالسيرفر: {e}")
+    except:
         return None
 
 conn = init_connection()
 
-# --- 4. محرك تحميل الصفحات الديناميكي ---
+
+# --- 4. محرك استدعاء الصفحات التلقائي ---
 def load_system_modules():
-    """تحميل كافة موديولات النظام من مجلد web_ui"""
     pages = {}
-    # خريطة الربط بين المفتاح الداخلي وبين (مسار الملف، اسم الدالة)
     modules_map = {
         "dashboard": ("web_ui.dashboard", "render_dashboard"),
         "ai_assistant": ("web_ui.ai_assistant", "render_ai_assistant"),
@@ -112,113 +117,135 @@ def load_system_modules():
     
     for key, (path, func_name) in modules_map.items():
         try:
-            # استيراد الموديول ديناميكياً
             module = __import__(path, fromlist=[func_name])
             pages[key] = getattr(module, func_name)
-        except Exception as e:
-            # دالة احتياطية في حال تعثر تحميل موديول معين
-            pages[key] = lambda *args, **kwargs: st.error(f"⚠️ الموديول '{key}' غير جاهز أو به خطأ برمجبي داخلي.")
+        except Exception:
+            pages[key] = lambda *args, **kwargs: st.error(f"⚠️ الموديول {key} يحتاج تحديث في مجلد web_ui")
             
     return pages
 
 PAGES = load_system_modules()
 
-# --- 5. إدارة الجلسة (Session State) ---
 if "logged_in" not in st.session_state:
-    st.session_state.update({"logged_in": False, "emp_name": "", "role": "", "emp_id": None})
+    st.session_state.update({"logged_in": False, "emp_name": "", "role": ""})
 
-# --- 6. واجهة تسجيل الدخول ---
+
+# --- 5. دالة التحية الذكية ---
+def get_time_greeting():
+    now_hour = datetime.now().hour
+    if now_hour < 12:
+        return "صباح الخير"
+    elif now_hour < 18:
+        return "مساء الخير"
+    else:
+        return "تمنياتنا بليلة سعيدة"
+
+
+# --- 6. واجهة تسجيل الدخول (تصميم احترافي) ---
 def show_login_screen():
     st.write("<br><br><br>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1, 1.5, 1])
+    c1, c2, c3 = st.columns([1, 1.3, 1])
     with c2:
         if os.path.exists("logo.png"):
-            st.image("logo.png", width=300)
+            st.image("logo.png", width=280)
+        else:
+            st.markdown("<h1 style='text-align:center; color:#38bdf8;'>نَسق للإعلان</h1>", unsafe_allow_html=True)
         
-        st.subheader("🔐 بوابة دخول نظام نَسق")
+        st.markdown("""
+        <div style="background:#1e293b; padding:20px; border-radius:15px; border-bottom:4px solid #38bdf8; text-align:center;">
+            <span style="color:white; font-size:18px; font-weight:bold;">🔐 بوابة الدخول الآمن</span>
+        </div>
+        """, unsafe_allow_html=True)
+        
         with st.form("login_form"):
-            user_serial = st.text_input("رقم الموظف التسلسلي")
-            user_pass = st.text_input("كلمة المرور", type="password")
-            
-            if st.form_submit_button("دخول آمن للنظام", use_container_width=True):
+            serial = st.text_input("رقم الموظف التسلسلي")
+            pwd = st.text_input("كلمة المرور", type="password")
+            if st.form_submit_button("دخول للنظام 🚀", use_container_width=True):
                 if conn:
                     cursor = conn.cursor()
-                    query = "SELECT emp_name, role, id FROM employees WHERE serial_number = %s AND password = %s"
-                    cursor.execute(query, (user_serial, user_pass))
-                    user_data = cursor.fetchone()
-                    
-                    if user_data:
-                        st.session_state.update({
-                            "logged_in": True, 
-                            "emp_name": user_data[0], 
-                            "role": user_data[1],
-                            "emp_id": user_data[2]
-                        })
-                        st.success(f"مرحباً بك يا {user_data[0]}")
+                    cursor.execute("SELECT emp_name, role FROM employees WHERE serial_number = %s AND password = %s", (serial, pwd))
+                    user = cursor.fetchone()
+                    if user:
+                        st.session_state.update({"logged_in": True, "emp_name": user[0], "role": user[1]})
                         st.rerun()
                     else:
-                        st.error("بيانات الدخول غير صحيحة، يرجى التحقق.")
+                        st.error("رقم الموظف أو كلمة المرور غير صحيحة.")
                 else:
-                    st.warning("تعذر الوصول لقاعدة البيانات حالياً.")
+                    st.error("تعذر الاتصال بالسيرفر، يرجى المحاولة لاحقاً.")
 
-# --- 7. بوابة النظام الرئيسية (بعد الدخول) ---
+
+# --- 7. البوابة والواجهة الرئيسية (Master Portal) ---
 def show_main_portal():
+    # التحية والبيانات أعلى الصفحة
+    greeting = get_time_greeting()
+    
+    # بناء القائمة الجانبية
     with st.sidebar:
         if os.path.exists("logo.png"):
             st.image("logo.png", use_container_width=True)
+        st.divider()
         
-        st.markdown(f"<p style='text-align:center; color:#38bdf8;'>👤 {st.session_state.emp_name}<br><small>({st.session_state.role})</small></p>", unsafe_allow_html=True)
+        # مؤشر حالة الاتصال بالسيرفر (إضافة مميزة)
+        status_color = "🟢 متصل بالسيرفر" if conn else "🔴 غير متصل بالسيرفر"
+        st.markdown(f"""
+        <div style="background: rgba(255,255,255,0.05); padding:10px; border-radius:10px; text-align:center;">
+            <small style="color:#94a3b8;">{greeting}، {st.session_state.emp_name}</small><br>
+            <span style="color:#38bdf8; font-weight:bold; font-size:12px;">{status_color}</span>
+        </div>
+        """, unsafe_allow_html=True)
         st.divider()
         
         # بناء القائمة بناءً على الصلاحيات
         if st.session_state.role == "Admin":
-            menu_options = [
-                "📊 لوحة القيادة", "🤖 المساعد الذكي", "➕ طلب جديد", 
-                "📦 الورشة والطلبات", "🧾 الحسابات والتحصيل", "📢 محرك التسويق", 
-                "📲 واتساب التحصيل", "👥 قاعدة العملاء", "👨‍💼 إدارة الفريق", "⚙️ الإعدادات"
-            ]
+            menu = ["📊 لوحة القيادة", "🤖 المساعد الذكي", "➕ طلب جديد", "📦 الورشة", "🧾 الحسابات", "📢 التسويق", "📲 واتساب التحصيل", "👥 العملاء", "👨‍💼 الفريق", "⚙️ الإعدادات"]
         else:
-            menu_options = ["🏠 شاشتي الرئيسية", "🤖 المساعد الذكي"]
+            menu = ["🏠 شاشتي الرئيسية", "🤖 المساعد الذكي"]
             
-        choice = st.radio("القائمة الرئيسية:", menu_options, label_visibility="collapsed")
+        choice = st.radio("القائمة", menu, label_visibility="collapsed")
         
         st.divider()
         if st.button("🚪 تسجيل الخروج", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
 
-    # خريطة توجيه القائمة (Navigation Logic)
+    # خريطة توجيه الخيارات للغات البرمجية
     nav_map = {
-        "📊 لوحة القيادة": "dashboard",
-        "🤖 المساعد الذكي": "ai_assistant",
+        "📊 لوحة القيادة": "dashboard", 
+        "🤖 المساعد الذكي": "ai_assistant", 
         "➕ طلب جديد": "new_order",
-        "📦 الورشة والطلبات": "orders",
-        "🧾 الحسابات والتحصيل": "accounts",
-        "📢 محرك التسويق": "marketing",
-        "📲 واتساب التحصيل": "whatsapp",
-        "👥 قاعدة العملاء": "clients",
-        "👨‍💼 إدارة الفريق": "employees",
-        "⚙️ الإعدادات": "categories",
-        "🏠 شاشتي الرئيسية": "my_role_screen"
+        "📦 الورشة": "orders", 
+        "🧾 الحسابات": "accounts", 
+        "📢 التسويق": "marketing",
+        "📲 واتساب التحصيل": "whatsapp", 
+        "👥 العملاء": "clients", 
+        "👨‍💼 الفريق": "employees", 
+        "⚙️ الإعدادات": "categories", 
+        "🏠 شاشتي الرئيسية": "my_screen"
     }
     
-    selected_page = nav_map.get(choice)
+    selected_key = nav_map.get(choice)
     
-    # تنفيذ عرض الصفحة المختارة
-    if selected_page == "my_role_screen":
+    # هيدر الصفحة الحالية (إضافة مميزة)
+    st.markdown(f"""
+    <div style="background:#0f172a; padding:15px 25px; border-radius:12px; border-right:5px solid #38bdf8; margin-bottom:20px;">
+        <span style="color:#ffffff; font-size:20px; font-weight:bold;">📍 الواجهة الحالية: {choice}</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # تشغيل الصفحات
+    if selected_key == "ai_assistant":
+        PAGES["ai_assistant"]()
+    elif selected_key == "my_screen":
         role = st.session_state.role
         if role == "Designer": PAGES["designer"](conn, st.session_state.emp_name)
         elif role == "Technician": PAGES["tech"](conn, st.session_state.emp_name)
         elif role == "Installer": PAGES["installer"](conn, st.session_state.emp_name)
-        else: st.info("لا توجد شاشة مخصصة لهذا الدور، يرجى مراجعة المسؤول.")
-    elif selected_page:
-        # الصفحات التي تحتاج اتصال قاعدة البيانات
-        if selected_page == "ai_assistant":
-            PAGES[selected_page]()
-        else:
-            PAGES[selected_page](conn)
+        else: st.info("لا توجد واجهة مخصصة لهذه الرتبة، مراجعة الإدارة.")
+    elif selected_key:
+        PAGES[selected_key](conn)
 
-# --- 8. نقطة التشغيل النهائية ---
+
+# --- 8. نقطة البداية ---
 if not st.session_state.logged_in:
     show_login_screen()
 else:
