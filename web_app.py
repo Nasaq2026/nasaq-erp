@@ -1,39 +1,105 @@
 # web_app.py
-import streamlit as st
-import os
-import sys
-import warnings
-import psycopg2
-from datetime import datetime
 
-# --- 1. إصلاح المسارات ---
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
+# ... (نفس البداية والـ CSS السابقة بدون تغيير) ...
 
-# --- 2. تهيئة الإعدادات (ثبات تام) ---
-warnings.simplefilter('ignore', UserWarning)
-st.set_page_config(
-    page_title="نَسق ERP | الإدارة الذكية", 
-    page_icon="🎯", 
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# --- 3. ستايل نَسق الاحترافي (تمديد الأزرار والمحاذاة) ---
-def inject_nasq_styled_ui():
-    st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
-    
-    /* ضبط الاتجاه العام للموقع */
-    html, body, [data-testid="stAppViewContainer"], [data-testid="stSidebar"] {
-        direction: rtl;
-        text-align: right;
+# --- 5. تحميل الصفحات (تم إضافة التسويق والواتساب هنا) ---
+def load_system_pages():
+    pages = {}
+    modules = {
+        "dashboard": ("web_ui.dashboard", "render_dashboard"),
+        "ai_assistant": ("web_ui.ai_assistant", "render_ai_assistant"),
+        "new_order": ("web_ui.new_order", "render_new_order"),
+        "orders": ("web_ui.orders", "render_orders"),
+        "accounts": ("web_ui.accounts", "render_accounts"),
+        "clients": ("web_ui.clients", "render_clients"),
+        "employees": ("web_ui.employees", "render_employees"),
+        "categories": ("web_ui.categories", "render_categories"),
+        "designer": ("web_ui.designer", "render_designer"),
+        "tech": ("web_ui.technician", "render_technician"),
+        "installer": ("web_ui.installer", "render_installer"),
+        # الصفحات التي كانت مفقودة:
+        "marketing": ("web_ui.marketing", "render_marketing"),
+        "whatsapp": ("web_ui.whatsapp_sender", "render_whatsapp_sender")
     }
+    for key, (path, func) in modules.items():
+        try:
+            module = __import__(path, fromlist=[func])
+            pages[key] = getattr(module, func)
+        except:
+            pages[key] = lambda *args, **kwargs: st.error(f"⚠️ الملف {key} غير موجود في مجلد web_ui")
+    return pages
 
-    /* تنسيق القائمة الجانبية */
-    [data-testid="stSidebar"] {
+PAGES = load_system_pages()
+
+# ... (دالة login_screen كما هي) ...
+
+# --- 7. بوابة النظام الرئيسية (تحديث القائمة) ---
+def main_portal():
+    with st.sidebar:
+        if os.path.exists("logo.png"):
+            st.image("logo.png", width='stretch')
+        st.divider()
+        
+        # خيارات المدير (أضفنا التسويق والواتساب هنا)
+        if st.session_state.role == "Admin":
+            options = [
+                "📊 لوحة القيادة", 
+                "🤖 المساعد الذكي", 
+                "➕ طلب جديد", 
+                "📦 الورشة", 
+                "🧾 المالية", 
+                "📢 التسويق",        # خيار جديد
+                "📲 واتساب التحصيل",   # خيار جديد
+                "👥 العملاء", 
+                "👨‍💼 الفريق", 
+                "⚙️ الإعدادات"
+            ]
+        else:
+            options = ["🏠 شاشتي الرئيسية", "🤖 المساعد الذكي"]
+            
+        choice = st.radio("القائمة:", options, label_visibility="collapsed")
+        
+        st.divider()
+        if st.button("🚪 تسجيل الخروج", width='stretch'):
+            st.session_state.logged_in = False
+            st.rerun()
+
+    # --- الربط البرمجي المصحح ---
+    mapping = {
+        "📊 لوحة القيادة": "dashboard", 
+        "🤖 المساعد الذكي": "ai_assistant", 
+        "➕ طلب جديد": "new_order",
+        "📦 الورشة": "orders", 
+        "🧾 المالية": "accounts", 
+        "📢 التسويق": "marketing",       # ربط التسويق
+        "📲 واتساب التحصيل": "whatsapp",   # ربط الواتساب
+        "👥 العملاء": "clients",
+        "👨‍💼 الفريق": "employees", 
+        "⚙️ الإعدادات": "categories",
+        "🏠 شاشتي الرئيسية": "my_screen"
+    }
+    
+    page_key = mapping.get(choice)
+    
+    if page_key == "ai_assistant":
+        PAGES["ai_assistant"]()
+    
+    elif page_key == "my_screen":
+        role = st.session_state.role
+        if role == "Designer": PAGES["designer"](conn, st.session_state.emp_name)
+        elif role == "Technician": PAGES["tech"](conn, st.session_state.emp_name)
+        elif role == "Installer": PAGES["installer"](conn, st.session_state.emp_name)
+        else: st.warning("⚠️ لا توجد شاشة مخصصة لهذه الرتبة")
+            
+    elif page_key:
+        # استدعاء الصفحة مع تمرير الاتصال بقاعدة البيانات
+        PAGES[page_key](conn)
+
+# --- التشغيل ---
+if not st.session_state.logged_in:
+    login_screen()
+else:
+    main_portal()
         background-color: #0f172a !important;
         border-left: 1px solid #1e293b;
     }
