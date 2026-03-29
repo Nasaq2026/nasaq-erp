@@ -55,7 +55,7 @@ st.markdown(NASQ_UI_THEME, unsafe_allow_html=True)
 def init_connection():
     try:
         # ✅ تم تحديث الـ ID ليكون watkvwpzsxzdndhpmxsg
-        db_uri = "postgresql://postgres.watkvwpzsxzdndhpmxsg:Mahm@268609@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres"
+        db_uri = "postgresql://postgres.watkvwpzsxzdndhpmxsg:Nasaq268609@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres"
         return psycopg2.connect(db_uri, sslmode="require", connect_timeout=15)
     except Exception as e:
         st.sidebar.error(f"خطأ اتصال: {e}")
