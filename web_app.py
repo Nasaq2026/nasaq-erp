@@ -33,7 +33,6 @@ header, footer {visibility: hidden;}
 
 # --- 3. إدارة الاتصال (تم تحديث الرابط والباسورد) ---
 @st.cache_resource(ttl=60)
-@st.cache_resource(ttl=60)
 def init_connection():
     try:
         # لاحظ إضافة ?prepareThreshold=0 في النهاية
