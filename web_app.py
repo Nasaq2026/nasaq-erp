@@ -33,9 +33,10 @@ header, footer {visibility: hidden;}
 
 # --- 3. إدارة الاتصال (تم تحديث الرابط والباسورد) ---
 @st.cache_resource(ttl=60)
+@st.cache_resource(ttl=60)
 def init_connection():
     try:
-        # ✅ الرابط المحدث لمشروعك الحالي
+        # لاحظ إضافة ?prepareThreshold=0 في النهاية
         db_uri = "postgresql://postgres.watkvwpzsxzdndhpmxsg:Nasaq268609@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?prepareThreshold=0"
         return psycopg2.connect(db_uri, sslmode="require", connect_timeout=15)
     except Exception as e:
