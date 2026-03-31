@@ -1,126 +1,71 @@
-# web_ui/dashboard.py
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 from datetime import datetime
 
 def render_dashboard(conn):
-    # تحسين العنوان ليظهر بشكل حضاري
-    st.markdown(f"""
+    st.markdown("""
         <div style="text-align: right;">
-            <h1 style="color: #1e293b; margin-bottom: 0;">📊 لوحة القيادة (Dashboard)</h1>
-            <p style="color: #64748b;">مرحباً بك في نظام NASAQ ERP. تاريخ اليوم: {datetime.now().strftime('%Y-%m-%d')}</p>
+            <h1 style="color: #1e293b;">📊 لوحة قيادة نَسق (Nasaq Dashboard)</h1>
+            <p style="color: #64748b;">ملخص الأداء المالي والتشغيلي لمؤسسة موديول للدعاية والإعلان.</p>
         </div>
     """, unsafe_allow_html=True)
 
     try:
-        conn.rollback()
         cursor = conn.cursor()
 
-        # ==========================================
-        # 1. جلب الإحصائيات (البطاقات)
-        # ==========================================
-        cursor.execute("SELECT COUNT(*) FROM orders")
-        total = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT COUNT(*) FROM orders WHERE current_stage='التصميم'")
-        design = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT COUNT(*) FROM orders WHERE current_stage='الطباعة والإنتاج'")
-        print_stage = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT COUNT(*) FROM orders WHERE current_stage='التركيب'")
-        install = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT COUNT(*) FROM orders WHERE status='مكتمل'")
-        done = cursor.fetchone()[0]
+        # 1. جلب البيانات الأساسية للعمليات
+        cursor.execute("SELECT * FROM orders")
+        columns = [desc[0] for desc in cursor.description]
+        df = pd.DataFrame(cursor.fetchall(), columns=columns)
 
-        # عرض البطاقات بتصميم الـ Metrics
-        col1, col2, col3, col4, col5 = st.columns(5)
-        col1.metric("إجمالي الطلبات", total)
-        col2.metric("في التصميم", design, delta="جاري", delta_color="normal")
-        col3.metric("في الإنتاج", print_stage, delta="جاري", delta_color="normal")
-        col4.metric("في التركيب", install, delta="ميداني", delta_color="inverse")
-        col5.metric("مكتملة ✅", done)
+        if df.empty:
+            st.info("📭 لا توجد بيانات كافية لعرض الإحصائيات حالياً.")
+            return
+
+        # 2. قسم المؤشرات الرئيسية (KPIs)
+        st.markdown("### 📈 مؤشرات الأداء")
+        total_orders = len(df)
+        total_revenue = df['total_with_vat'].sum()
+        # حساب الربح إذا كان العمود موجوداً، وإلا يتم حسابه يدوياً
+        total_profit = df['profit'].sum() if 'profit' in df.columns else (df['price'].sum() - df['cost'].sum())
+        active_orders = len(df[df['status'] == 'نشط'])
+
+        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+        kpi1.metric("إجمالي الطلبات", f"{total_orders}")
+        kpi2.metric("إجمالي الإيرادات", f"{total_revenue:,.2f} ر.س")
+        kpi3.metric("صافي الربح التقديري", f"{total_profit:,.2f} ر.س")
+        kpi4.metric("طلبات قيد التنفيذ", f"{active_orders}")
 
         st.divider()
 
-        # ==========================================
-        # 2. قسم التقارير الإدارية
-        # ==========================================
-        st.markdown("### 📄 التقارير الإدارية ومتابعة الأداء")
-        
-        with st.expander("📝 عرض وتصدير تقرير أداء فريق العمل", expanded=True):
-            st.write("يمكنك معاينة التقرير بالأسفل أو الضغط على الزر لتوليد ملف HTML للطباعة.")
-            
-            # تحديث الزر إلى الكود الجديد width="stretch"
-            generate_btn = st.button("🖨️ توليد تقرير أداء فريق العمل للطباعة", width="stretch")
-            
-            if generate_btn:
-                # جلب البيانات للتقرير
-                cursor.execute("SELECT work_order_sn, client_name, designer, technician, installer, current_stage, status FROM orders")
-                orders = cursor.fetchall()
+        # 3. التحليل البصري (Charts)
+        col_charts_1, col_charts_2 = st.columns(2)
 
-                # بناء كود HTML الاحترافي
-                html_content = f"""
-                <html dir="rtl">
-                <head><meta charset="UTF-8"></head>
-                <body style="font-family:Arial; padding:30px; background:#f4f6f9;">
-                    <div style="background:white; padding:20px; border-radius:10px; box-shadow:0 4px 8px rgba(0,0,0,0.1); max-width: 1000px; margin: auto;">
-                        <h1 style="color:#2c3e50; text-align:center;">مؤسسة نسق - تقرير أداء فريق العمل</h1>
-                        <p style="text-align:center; color: #7f8c8d;">تاريخ صدور التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
-                        <hr style="border: 0; border-top: 2px solid #3498db;">
-                        
-                        <table border="1" style="width:100%; border-collapse:collapse; text-align:center; margin-top:20px; font-size: 14px;">
-                            <tr style="background:#2980b9; color:white; height:45px;">
-                                <th>رقم الأمر</th>
-                                <th>العميل</th>
-                                <th>المصمم</th>
-                                <th>فني الإنتاج</th>
-                                <th>عامل التركيب</th>
-                                <th>المرحلة</th>
-                                <th>الحالة</th>
-                            </tr>
-                """
-                for o in orders:
-                    html_content += f"""
-                    <tr style="height:40px;">
-                        <td>{o[0]}</td>
-                        <td>{o[1]}</td>
-                        <td>{o[2] or '---'}</td>
-                        <td>{o[3] or '---'}</td>
-                        <td>{o[4] or '---'}</td>
-                        <td><b>{o[5]}</b></td>
-                        <td style="color: {'#27ae60' if o[6]=='مكتمل' else '#e67e22'}">{o[6]}</td>
-                    </tr>
-                    """
-                
-                html_content += "</table></div></body></html>"
-                
-                # تحديث زر التحميل إلى الكود الجديد width="stretch"
-                st.download_button(
-                    label="📥 اضغط هنا لتحميل ملف التقرير (HTML) وجاهز للطباعة",
-                    data=html_content,
-                    file_name=f"admin_report_{datetime.now().strftime('%Y%m%d')}.html",
-                    mime="text/html",
-                    width="stretch"
-                )
-                st.success("تم تجهيز التقرير بنجاح!")
+        with col_charts_1:
+            st.markdown("#### 🛠️ توزيع الطلبات حسب المرحلة")
+            stage_counts = df['current_stage'].value_counts().reset_index()
+            fig_stage = px.pie(stage_counts, values='count', names='current_stage', 
+                             hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
+            st.plotly_chart(fig_stage, use_container_width=True)
 
-        # ==========================================
-        # 3. عرض سريع لأحدث الأوامر
-        # ==========================================
-        st.markdown("### 🕒 أحدث أوامر العمل")
-        df_latest = pd.read_sql("""
-            SELECT 
-                work_order_sn AS "رقم الأمر", 
-                client_name AS "العميل", 
-                current_stage AS "المرحلة الحالية" 
-            FROM orders 
-            ORDER BY id DESC LIMIT 5
-        """, conn)
-        
-        # عرض الجدول بتنسيق أنيق
-        st.dataframe(df_latest, width="stretch", hide_index=True)
+        with col_charts_2:
+            st.markdown("#### 💰 الإيرادات حسب القسم")
+            cat_revenue = df.groupby('category')['total_with_vat'].sum().reset_index()
+            fig_cat = px.bar(cat_revenue, x='category', y='total_with_vat', 
+                            color='category', text_auto='.2s')
+            st.plotly_chart(fig_cat, use_container_width=True)
+
+        st.divider()
+
+        # 4. جدول آخر 5 طلبات (بلمسة جمالية)
+        st.markdown("### 🕒 أحدث الطلبات المستلمة")
+        latest_df = df.sort_values(by='id', ascending=False).head(5)
+        # تصفية الأعمدة المهمة للمدير فقط
+        display_cols = ['work_order_sn', 'client_name', 'category', 'total_with_vat', 'current_stage', 'status']
+        st.table(latest_df[display_cols])
 
     except Exception as e:
-        st.error(f"حدث خطأ في تحميل لوحة القيادة: {e}")
+        st.error(f"❌ حدث خطأ أثناء تحميل لوحة البيانات: {e}")
+
+# استدعاء دالة التحذيرات في الملف الرئيسي (web_app.py) لإخفاء رسائل Pandas
