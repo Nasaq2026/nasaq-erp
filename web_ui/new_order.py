@@ -1,11 +1,16 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+# استيراد الديالوج من الملف المنفصل الذي أنشأناه
+try:
+    from utils.add_client_modal import add_client_modal_dialog
+except ImportError:
+    # في حال لم يتم إنشاء الملف بعد، نضع تنبيهاً
+    def add_client_modal_dialog(conn): st.error("ملف add_client_modal غير موجود")
 
 # ==========================================
 # 📦 أولاً: قاعدة بيانات الخامات (مسجلة مسبقاً)
 # ==========================================
-# ملاحظة: في المستقبل سننقل هذه للـ Database لتعدلها من صفحة الإعدادات
 MATERIALS_DB = {
     "حروف مضيئة": {
         "ستيل رينبو (إضاءة خلفية)": {"price": 650, "unit": "متر طولي"},
@@ -49,16 +54,33 @@ def render_new_order(conn):
     # --- واجهة 1: بيانات العميل ---
     if st.session_state.order_step == 1:
         st.markdown("<div class='step-container'><h3>👤 المرحلة الأولى: بيانات العميل</h3></div>", unsafe_allow_html=True)
+        
+        # إضافة زر "إضافة عميل سريع" المنبثق
+        c_top1, c_top2 = st.columns([3, 1])
+        with c_top2:
+            if st.button("➕ عميل جديد", type="primary", use_container_width=True):
+                add_client_modal_dialog(conn)
+        
         c1, c2 = st.columns(2)
-        c_name = c1.text_input("اسم العميل / المؤسسة:")
-        c_phone = c2.text_input("رقم الجوال (التعميد والواتساب):", placeholder="05xxxxxxxx")
+        
+        # جلب قائمة العملاء من الداتابيز للاختيار منهم
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT client_name FROM clients")
+            client_list = [row[0] for row in cursor.fetchall()]
+        except:
+            client_list = []
+
+        c_name = c1.selectbox("اختر العميل:", ["-- اختر من القائمة --"] + client_list)
+        c_phone = c2.text_input("تأكيد رقم الجوال:", placeholder="05xxxxxxxx")
         
         if st.button("التالي: اختيار القسم ➡️", width='stretch'):
-            if c_name and c_phone:
+            if c_name != "-- اختر من القائمة --":
                 st.session_state.current_order.update({"name": c_name, "phone": c_phone})
                 st.session_state.order_step = 2
                 st.rerun()
-            else: st.warning("⚠️ يرجى تعبئة بيانات العميل أولاً.")
+            else: 
+                st.warning("⚠️ يرجى اختيار عميل أو إضافة عميل جديد.")
 
     # --- واجهة 2: اختيار التخصص الإعلاني ---
     elif st.session_state.order_step == 2:
@@ -78,7 +100,6 @@ def render_new_order(conn):
         cat = st.session_state.current_order["category"]
         st.markdown(f"<div class='step-container'><h3>🛠️ المرحلة الثالثة: تفاصيل ({cat})</h3></div>", unsafe_allow_html=True)
         
-        # القائمة المسبقة للخامات
         materials = MATERIALS_DB[cat]
         selected_mat = st.selectbox("اختار الخامة المسجلة مسبقاً:", list(materials.keys()))
         
@@ -91,7 +112,6 @@ def render_new_order(conn):
         qty = c1.number_input(f"الكمية المطلوبة ({unit}):", min_value=0.1, value=1.0)
         final_unit_price = c2.number_input("سعر الوحدة (يمكنك التعديل):", value=float(base_price))
 
-        # الحسابات الضريبية السعودية
         subtotal = qty * final_unit_price
         vat = subtotal * 0.15
         total = subtotal + vat
@@ -108,8 +128,8 @@ def render_new_order(conn):
 
         if st.button("✅ تعميد الطلب وإصدار أمر التشغيل", width='stretch'):
             st.balloons()
-            st.success("تم تسجيل الطلب بنجاح! سيصل إشعار للمصمم والفني فوراً.")
-            # هنا نضيف كود الـ SQL للحفظ
+            # هنا يمكنك استدعاء كود الحفظ الفعلي
+            st.success("تم تسجيل الطلب بنجاح!")
             st.session_state.order_step = 1
             st.rerun()
 
