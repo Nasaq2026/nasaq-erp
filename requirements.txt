@@ -6,4 +6,6 @@ pandas
 qrcode
 Pillow
 google-generativeai
+fpdf2
+psycopg2-binary
 
