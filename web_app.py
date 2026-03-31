@@ -1,59 +1,92 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
 import warnings
+import os
+import sys
 
-# استيراد منظومات نَسق المحدثة
-# تأكد من أن dashboard.py و marketing.py و clients.py مصححة
-from utils.db_manager import db
-from web_ui import (
-    dashboard, new_order, orders, tracking_page,
-    marketing, clients, settings
+# 1. إعدادات الصفحة والتحذيرات
+st.set_page_config(
+    page_title="نَسق ERP | Module Group", 
+    layout="wide", 
+    page_icon="🎯",
+    initial_sidebar_state="expanded"
 )
-
-# 1. إعداد الصفحة والتحذيرات
-st.set_page_config(page_title="نَسق ERP | Module Group", layout="wide", page_icon="🎯")
 warnings.filterwarnings('ignore', category=UserWarning)
 
-# 2. CSS للحركة والأيقونة العائمة (كما في ملفك)
+# ضمان رؤية المجلدات الفرعية
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# 2. محاولة استيراد المنظومات (مع معالجة الأخطاء لضمان استقرار التشغيل)
+try:
+    from utils.db_manager import db
+    from web_ui import (
+        dashboard, new_order, orders, tracking_page,
+        marketing, clients, finance, supply_chain, hr_system, settings
+    )
+except ImportError as e:
+    st.error(f"⚠️ نقص في ملفات النظام: {e}")
+    st.stop()
+
+# 3. CSS المطور للحركة، الأيقونات العائمة، وتنسيق الواجهة
 st.markdown("""
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+    html, body, [class*="css"] { font-family: 'Cairo', sans-serif; }
+    
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .main { animation: fadeIn 1s; }
-    .stMetric { background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-    .stButton>button { border-radius: 10px; transition: 0.3s; }
-    .stButton>button:hover { transform: scale(1.05); }
-    /* أيقونة واتساب عائمة */
-    .wa-float {
-        position:fixed; width:60px; height:60px; bottom:40px; right:40px;
-        background-color:#25d366; color:#FFF; border-radius:50px; text-align:center;
-        font-size:30px; box-shadow: 2px 2px 3px #999; z-index:100;
+    
+    /* تنسيق البطاقات الإحصائية */
+    .stMetric { 
+        background: #ffffff; 
+        padding: 20px; 
+        border-radius: 15px; 
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        border-right: 5px solid #3b82f6;
     }
+    
+    /* الزر العائم للواتساب */
+    .wa-float {
+        position:fixed; width:60px; height:60px; bottom:40px; left:40px;
+        background-color:#25d366; color:#FFF; border-radius:50px; text-align:center;
+        font-size:30px; box-shadow: 2px 2px 10px rgba(0,0,0,0.2); z-index:100;
+        transition: 0.3s;
+    }
+    .wa-float:hover { transform: scale(1.1); color: white; }
     </style>
+    
     <a href="https://wa.me/966XXXXXXXXX" class="wa-float" target="_blank">
-        <i class="fa fa-whatsapp" style="margin-top:16px;"></i>
+        <div style="margin-top:14px;">💬</div>
     </a>
     """, unsafe_allow_html=True)
 
-# 3. القائمة الجانبية (Side Navigation)
+# 4. القائمة الجانبية الذكية (Side Navigation)
 with st.sidebar:
-    st.image("assets/logo.png", width=180) # تأكد من وجود شعار Module
-    st.markdown("---")
+    # حل مشكلة الصورة: البحث عن المسار المطلق وتجنب الانهيار
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    logo_path = os.path.join(base_dir, "assets", "logo.png")
+    
+    if os.path.exists(logo_path):
+        st.image(logo_path, width=180)
+    else:
+        st.markdown("<h2 style='text-align:center; color:#3b82f6;'>نَسق ERP 🎯</h2>", unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
     
     choice = option_menu(
-        "نظام نَسق المطور",
-        # تعديل القائمة: إضافة "لوحة التحكم (الإحصائيات)"
-        ["الرئيسية (العمليات)", "طلب جديد", "لوحة الإحصائيات (الداشبورد)", "تتبع الطلبات", "المسوق الذكي", "قاعدة العملاء", "الإعدادات"],
-        icons=['grid-1x2', 'plus-circle', 'bar-chart-line', 'search', 'megaphone', 'people', 'sliders'],
-        menu_icon="cast", default_index=0,
+        "منظومة موديول",
+        ["الرئيسية (العمليات)", "طلب جديد", "الداشبورد المالي", "قاعدة العملاء", "الموردين والورش", "الموارد البشرية", "المسوق الذكي", "الإعدادات"],
+        icons=['grid-1x2', 'plus-circle', 'graph-up-arrow', 'people', 'truck', 'person-badge', 'megaphone', 'sliders'],
+        menu_icon="app-indicator", default_index=0,
         styles={
             "container": {"padding": "5!important", "background-color": "#fafafa"},
-            "icon": {"color": "#3b82f6", "font-size": "20px"}, 
-            "nav-link": {"font-weight": "600", "font-family": "'Cairo', sans-serif"},
-            "nav-link-selected": {"background-color": "#3b82f6", "color": "white"},
+            "icon": {"color": "#3b82f6", "font-size": "18px"}, 
+            "nav-link": {"font-size": "14px", "text-align": "right", "margin":"5px", "--hover-color": "#e2e8f0"},
+            "nav-link-selected": {"background-color": "#3b82f6", "font-weight": "700"},
         }
     )
 
-# 4. التوجيه الذكي (Routing)
+# 5. التوجيه الذكي للمنظومات (Routing Logic)
 try:
     conn = db.get_connection()
 
@@ -63,21 +96,23 @@ try:
     elif choice == "طلب جديد":
         new_order.render_new_order(conn)
         
-    elif choice == "لوحة الإحصائيات (الداشبورد)":
-        # تعديل التوجيه لاستدعاء الداشبورد الاحترافي (الذي يظهر الأرباح)
+    elif choice == "الداشبورد المالي":
         dashboard.render_dashboard(conn)
-        
-    elif choice == "تتبع الطلبات":
-        tracking_page.render_tracking(conn)
-        
-    elif choice == "المسوق الذكي":
-        marketing.render_marketing(conn)
         
     elif choice == "قاعدة العملاء":
         clients.render_clients(conn)
+        
+    elif choice == "الموردين والورش":
+        supply_chain.render_supply_chain(conn)
+        
+    elif choice == "الموارد البشرية":
+        hr_system.render_hr(conn)
+        
+    elif choice == "المسوق الذكي":
+        marketing.render_marketing(conn)
         
     elif choice == "الإعدادات":
         settings.render_settings()
         
 except Exception as e:
-    st.error(f"❌ حدث خطأ غير متوقع في نظام التوجيه: {e}")
+    st.error(f"❌ خطأ في الاتصال بقاعدة البيانات أو تحميل الصفحة: {e}")
