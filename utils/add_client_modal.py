@@ -1,45 +1,44 @@
 import streamlit as st
 
-# دالة النافذة المنبثقة (Dialog) لإضافة عميل
-@st.dialog("👤 إضافة عميل جديد لنَسق")
+@st.dialog("👤 تسجيل عميل جديد - نَسق")
 def add_client_modal_dialog(conn):
     st.markdown("""
         <style>
-        /* ستايل خاص بالديالوج ليتناسب مع هوية نَسق */
-        div[data-testid="stDialogContent"] {
-            border-right: 12px solid #fb923c !important;
-            border-radius: 15px !important;
-            direction: rtl !important;
-        }
-        div[data-testid="stDialogContent"] h2 { text-align: right !important; font-family: 'Cairo', sans-serif; }
+        div[data-testid="stDialogContent"] { border-top: 10px solid #fb923c; border-radius: 20px; direction: rtl; }
+        .field-label { font-weight: bold; color: #1e293b; margin-bottom: 5px; display: block; }
         </style>
     """, unsafe_allow_html=True)
-    
-    st.write("قم بتعبئة بيانات العميل الجديد ليتم إضافته لقاعدة البيانات فوراً.")
-    
-    with st.form("quick_add_client", clear_on_submit=True):
+
+    with st.form("professional_client_form", clear_on_submit=True):
+        st.subheader("📋 البيانات الأساسية")
         c1, c2 = st.columns(2)
         name = c1.text_input("اسم العميل / المؤسسة *")
-        phone = c2.text_input("رقم الجوال *", placeholder="05xxxxxxxx")
+        phone = c2.text_input("رقم الجوال *")
+
+        st.divider()
+        st.subheader("📑 البيانات القانونية والضريبية")
+        c3, c4 = st.columns(2)
+        vat_number = c3.text_input("الرقم الضريبي (15 خانة)")
+        cr_number = c4.text_input("رقم السجل التجاري")
         
-        email = st.text_input("البريد الإلكتروني (اختياري)")
-        address = st.text_area("العنوان / المدينة")
-        
-        st.markdown("---")
-        submit = st.form_submit_button("حفظ العميل في القاعدة ✅", width='stretch')
+        st.subheader("📍 الموقع والعنوان الوطني")
+        national_address = st.text_area("العنوان الوطني (مثلاً: 1234 الرياض - حي الملقا - 7890)")
+
+        submit = st.form_submit_button("حفظ بيانات العميل ✅", width='stretch', type="primary")
 
         if submit:
             if name and phone:
                 try:
                     cursor = conn.cursor()
-                    # استعلام الإدخال المتوافق مع PostgreSQL (بدون SERIAL لأنه تلقائي)
-                    query = "INSERT INTO clients (client_name, phone, email, address) VALUES (%s, %s, %s, %s)"
-                    cursor.execute(query, (name, phone, email, address))
+                    query = """
+                        INSERT INTO clients (client_name, phone, vat_number, cr_number, address) 
+                        VALUES (%s, %s, %s, %s, %s)
+                    """
+                    cursor.execute(query, (name, phone, vat_number, cr_number, national_address))
                     conn.commit()
-                    
-                    st.success(f"تم إضافة العميل {name} بنجاح!")
-                    st.rerun() 
+                    st.success("تم الحفظ! سيظهر العميل الآن في القائمة المنسدلة.")
+                    st.rerun()
                 except Exception as e:
-                    st.error(f"خطأ في قاعدة البيانات: {e}")
+                    st.error(f"خطأ: {e}")
             else:
-                st.warning("⚠️ يرجى إدخال الاسم ورقم الجوال على الأقل.")
+                st.warning("يرجى إدخال الاسم والجوال")
