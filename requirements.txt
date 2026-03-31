@@ -1,4 +1,5 @@
 streamlit
+streamlit-lottie
 psycopg2-binary
 pandas
 qrcode
