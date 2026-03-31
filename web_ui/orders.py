@@ -16,9 +16,10 @@ def render_orders(conn):
     """, unsafe_allow_html=True)
 
     try:
+        # التأكد من تحديث الجلسة مع قاعدة البيانات
         cursor = conn.cursor()
         
-        # 1. جلب بيانات الموظفين
+        # 1. جلب بيانات الموظفين للقوائم المنسدلة
         cursor.execute("SELECT emp_name FROM employees WHERE role = 'Designer'")
         designers_list = [r[0] for r in cursor.fetchall()] or ["بدون مصمم"]
         
@@ -36,6 +37,7 @@ def render_orders(conn):
             st.warning("📭 لا توجد طلبات مسجلة حالياً في نظام نَسق.")
             return
 
+        # عرض الجدول الرئيسي (تنسيق عريض)
         st.markdown("### 📋 سجل الطلبات المفتوحة")
         st.dataframe(df, use_container_width=True, hide_index=True)
 
@@ -46,7 +48,7 @@ def render_orders(conn):
             order_sns = df['work_order_sn'].unique().tolist()
             selected_sn = st.selectbox("🎯 اختر رقم أمر العمل للتعديل أو الطباعة:", order_sns)
             
-            # جلب البيانات الأساسية للتعديل
+            # جلب البيانات الأساسية من الـ DataFrame للتعديل السريع
             order_data = df[df['work_order_sn'] == selected_sn].iloc[0]
             
             with st.expander(f"📝 تعديل بيانات الطلب: {selected_sn}", expanded=True):
@@ -75,12 +77,12 @@ def render_orders(conn):
 
             st.divider()
 
-            # 4. مركز المستندات (التعديل الجذري هنا)
+            # 4. مركز المستندات (الجلب المباشر من الداتابيز لضمان دقة الأرقام المالية)
             st.markdown("### 🖨️ طباعة المستندات (نَسق)")
             c1, c2 = st.columns(2)
 
             if c1.button("📑 أمر تشغيل ورشة", use_container_width=True):
-                # جلب البيانات التقنية مباشرة
+                # جلب البيانات التقنية مباشرة من قاعدة البيانات
                 cursor.execute("SELECT * FROM orders WHERE work_order_sn = %s", (selected_sn,))
                 row = cursor.fetchone()
                 columns = [desc[0] for desc in cursor.description]
@@ -91,7 +93,7 @@ def render_orders(conn):
                 components.html(html_wo, height=600, scrolling=True)
 
             if c2.button("🧾 فاتورة ضريبية", use_container_width=True):
-                # جلب البيانات المالية الصحيحة (نفس الـ Query اللي سألته عنها)
+                # جلب البيانات المالية الصحيحة بالاسم لتجنب مشكلة الأصفار
                 cursor.execute("""
                     SELECT work_order_sn, client_name, phone, details, total_with_vat, paid, 
                     (total_with_vat - paid) as debt, category, material_type, dimensions, expected_delivery
@@ -100,22 +102,22 @@ def render_orders(conn):
                 row_inv = cursor.fetchone()
                 
                 if row_inv:
-                    # تحويل النتيجة لقاموس لتفهمه دالة generate_invoice_html
+                    # تحويل النتيجة لقاموس تفهمه دالة generate_invoice_html
                     keys = ['work_order_sn', 'client_name', 'phone', 'details', 'total_with_vat', 'paid', 'debt', 'category', 'material_type', 'dimensions', 'expected_delivery']
                     order_dict_inv = dict(zip(keys, row_inv))
 
-                    # جلب بيانات العميل للـ QR
+                    # جلب بيانات العميل للـ QR والضريبة
                     cursor.execute("SELECT * FROM clients WHERE phone = %s", (str(order_dict_inv['phone']),))
                     client_data = cursor.fetchone()
                     
-                    # الآن سترسل بيانات كاملة وليست أصفار
+                    # توليد الـ HTML وإضافة سكربت الطباعة الآلية
                     html_inv = generate_invoice_html(order_dict_inv, client_data)
                     st.download_button("📥 تحميل الفاتورة", data=html_inv, file_name=f"INV_{selected_sn}.html", mime="text/html")
                     
-                    # زر طباعة المتصفح لضمان الـ PDF
+                    # عرض المعاينة مع فتح نافذة الطباعة تلقائياً
                     components.html(f"{html_inv} <script>window.onload = function() {{ window.print(); }}</script>", height=600, scrolling=True)
         else:
-            st.error("⚠️ خطأ: عمود 'work_order_sn' مفقود.")
+            st.error("⚠️ خطأ: عمود 'work_order_sn' مفقود في قاعدة البيانات.")
 
     except Exception as e:
         st.error(f"❌ حدث خطأ في محرك العمليات: {e}")
