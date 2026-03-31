@@ -1,9 +1,9 @@
-streamlit
+streamlit-option_menu
 streamlit-lottie
-psycopg2-binary
+requests
+plotly
 pandas
 qrcode
 Pillow
 google-generativeai
-plotly
-requests
+
