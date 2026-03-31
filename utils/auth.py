@@ -11,28 +11,36 @@ class AuthManager:
         """تشفير كلمة المرور باستخدام SHA-256 مع الـ Salt"""
         if not password:
             return ""
-        salted_password = str(password) + self.salt
+        salted_password = str(password).strip() + self.salt
         return hashlib.sha256(salted_password.encode()).hexdigest()
 
     def verify_login(self, username, password):
-        """التحقق من صحة بيانات الدخول"""
+        """التحقق النهائي والمتسامح مع المسافات وحالة الأحرف"""
         try:
-            # 1. جلب بيانات المستخدم بالاسم فقط من القاعدة
-            query = "SELECT emp_name, password, role FROM employees WHERE emp_name = %s"
-            result = db.execute_query(query, (username,), fetch=True)
+            # تنظيف المدخلات
+            u_name = str(username).strip()
+            u_pass = str(password).strip()
+
+            # البحث باستخدام LOWER لضمان عدم الحساسية لحالة الأحرف (Admin أو admin)
+            query = "SELECT emp_name, password, role FROM employees WHERE LOWER(emp_name) = LOWER(%s)"
+            result = db.execute_query(query, (u_name,), fetch=True)
             
             if result and len(result) > 0:
                 user = result[0]
-                stored_password = str(user['password'])
+                stored_password = str(user['password']).strip()
                 
-                # 2. التحقق المزدوج (نص عادي '123' أو تشفير)
-                if password == stored_password or self.hash_password(password) == stored_password:
+                # التحقق المزدوج
+                if u_pass == stored_password or self.hash_password(u_pass) == stored_password:
                     return {
                         'emp_name': user['emp_name'],
                         'role': user['role']
                     }
+            else:
+                # إذا لم يجد المستخدم، اطبع تنبيه مخفي للمطور (Logs)
+                print(f"User {u_name} not found in database.")
+                
         except Exception as e:
-            st.error(f"خطأ في التحقق: {e}")
+            st.error(f"⚠️ خطأ تقني في الاتصال: {e}")
         
         return None
 
