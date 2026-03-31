@@ -6,3 +6,4 @@ qrcode
 Pillow
 google-generativeai
 plotly
+requests
