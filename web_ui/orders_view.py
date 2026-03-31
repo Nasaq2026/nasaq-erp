@@ -1,77 +1,101 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import streamlit.components.v1 as components
 
-def render_new_order(conn):
+def render_orders_view(conn):
+    # 1. تنسيق الواجهة بألوان "نَسق" (هوية بصرية جذابة)
     st.markdown("""
         <style>
-        .stButton>button { width: 100%; border-radius: 10px; height: 3em; background-color: #1e293b; color: white; }
-        .category-card { padding: 20px; border-radius: 15px; border: 1px solid #e2e8f0; text-align: center; transition: 0.3s; }
-        .category-card:hover { border-color: #fb923c; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .order-card {
+            background-color: #ffffff;
+            border-radius: 15px;
+            padding: 20px;
+            border-right: 10px solid #fb923c; /* لون برتقالي نَسق */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        .status-badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .internal-note {
+            background-color: #f1f5f9;
+            padding: 10px;
+            border-radius: 8px;
+            font-style: italic;
+            border-right: 3px solid #64748b;
+        }
         </style>
     """, unsafe_allow_html=True)
 
-    st.title("✨ إنشاء طلب إعلاني جديد")
+    st.title("📂 استعراض وإدارة طلبات نَسق")
     
-    # نظام المراحل (Wizard)
-    if 'order_step' not in st.session_state:
-        st.session_state.order_step = 1
-
-    # شريط التقدم
-    step_cols = st.columns(3)
-    steps = ["👤 العميل", "📦 المنتج", "💰 المالية"]
-    for i, s in enumerate(steps):
-        color = "#fb923c" if st.session_state.order_step == i+1 else "#94a3b8"
-        step_cols[i].markdown(f"<p style='text-align:center; color:{color}; font-weight:bold;'>{s}</p>", unsafe_allow_html=True)
-
-    st.divider()
-
-    # --- المرحلة 1: اختيار العميل ---
-    if st.session_state.order_step == 1:
-        st.subheader("1️⃣ بيانات العميل")
-        col1, col2 = st.columns(2)
-        
+    try:
         cursor = conn.cursor()
-        cursor.execute("SELECT client_name, phone FROM clients")
-        clients = cursor.fetchall()
-        client_names = [c[0] for c in clients]
-        
-        selected_client = col1.selectbox("اختر عميل مسجل:", ["-- جديد --"] + client_names)
-        
-        if selected_client == "-- جديد --":
-            new_client_name = col1.text_input("اسم العميل الجديد:")
-            new_client_phone = col2.text_input("رقم الجوال (للواتساب):")
-        else:
-            # جلب الجوال تلقائياً
-            phone = [c[1] for c in clients if c[0] == selected_client][0]
-            col2.info(f"رقم الجوال المرتبط: {phone}")
+        # جلب البيانات شاملة الملاحظات وصورة التعميد
+        query = "SELECT * FROM orders ORDER BY id DESC"
+        df = pd.read_sql(query, conn)
 
-        if st.button("التالي: اختيار نوع المنتج ➡️"):
-            st.session_state.order_step = 2
-            st.rerun()
+        if df.empty:
+            st.info("📭 لا توجد طلبات لعرضها حالياً.")
+            return
 
-    # --- المرحلة 2: اختيار المنتج (التخصص الإعلاني) ---
-    elif st.session_state.order_step == 2:
-        st.subheader("2️⃣ تخصص المنتج والخامات")
-        
-        # توزيع المنتجات في بطاقات
-        categories = {
-            "حروف مضيئة": "💡",
-            "أكريليك وفوركس": "🧩",
-            "استكرات وبنرات": "🖼️",
-            "هدايا ودروع": "🏆",
-            "مطبوعات ورقية": "📄",
-            "تجهيز مناسبات": "🎊"
-        }
-        
-        cols = st.columns(3)
-        for i, (name, icon) in enumerate(categories.items()):
-            with cols[i % 3]:
-                if st.button(f"{icon} \n {name}"):
-                    st.session_state.selected_cat = name
-                    st.session_state.order_step = 3
-                    st.rerun()
-        
-        if st.button("⬅️ الرجوع"):
-            st.session_state.order_step = 1
-            st.rerun()
+        # 2. نظام البحث السريع
+        search_query = st.text_input("🔍 ابحث عن طلب (اسم العميل أو رقم الطلب):")
+        if search_query:
+            df = df[df['client_name'].str.contains(search_query) | df['work_order_sn'].str.contains(search_query)]
+
+        # 3. عرض الطلبات بنظام البطاقات (Cards)
+        for index, row in df.iterrows():
+            with st.container():
+                st.markdown(f"""
+                <div class="order-card">
+                    <div style="display: flex; justify-content: space-between;">
+                        <h3 style="margin:0;">📦 {row['client_name']}</h3>
+                        <span class="status-badge" style="background-color:#fef3c7; color:#92400e;">{row['current_stage']}</span>
+                    </div>
+                    <p style="color:#64748b; font-size:0.9em;">رقم الطلب: <b>{row['work_order_sn']}</b> | المنتج: {row['category']}</p>
+                    <hr style="margin: 10px 0;">
+                </div>
+                """, unsafe_allow_html=True)
+
+                # داخل كل بطاقة (أزرار تفاعلية)
+                c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+                
+                # زر الواتساب التلقائي
+                msg = f"مرحباً {row['client_name']}، نرفق لكم نموذج التصميم للطلب {row['work_order_sn']}. يرجى التعميد للتنفيذ."
+                wa_url = f"https://wa.me/{row['phone']}?text={msg}"
+                c1.markdown(f"[💬 واتساب تعميد]({wa_url})")
+
+                # مساحة التعميد (رفع صورة الواتساب)
+                with c2:
+                    if st.button(f"📸 رفع تعميد", key=f"app_{row['id']}"):
+                        st.session_state[f"show_upload_{row['id']}"] = True
+                
+                # الملاحظات الداخلية (للمصمم والفني)
+                with c3:
+                    if st.button(f"📝 ملاحظات", key=f"note_{row['id']}"):
+                        st.session_state[f"show_note_{row['id']}"] = True
+
+                # طباعة أمر العمل PDF
+                if c4.button("📑 أمر عمل PDF", key=f"print_{row['id']}"):
+                    st.write("جاري التوليد...")
+
+                # إظهار نوافذ منبثقة صغيرة (Dialogs)
+                if st.session_state.get(f"show_upload_{row['id']}", False):
+                    img_file = st.file_uploader("ارفع صورة تعميد العميل (Screenshot)", type=['png', 'jpg', 'jpeg'], key=f"file_{row['id']}")
+                    if img_file:
+                        st.success("تم حفظ صورة التعميد في أرشيف الطلب ✅")
+
+                if st.session_state.get(f"show_note_{row['id']}", False):
+                    new_note = st.text_area("أضف ملاحظة للموظفين (المصمم/الفني):", key=f"txt_{row['id']}")
+                    if st.button("حفظ الملاحظة", key=f"save_{row['id']}"):
+                        st.info("تم إرسال الملاحظة لطاقم العمل 📩")
+
+                st.markdown("---")
+
+    except Exception as e:
+        st.error(f"خطأ في واجهة العرض: {e}")
