@@ -4,3 +4,4 @@ pandas
 qrcode
 Pillow
 google-generativeai
+plotly
