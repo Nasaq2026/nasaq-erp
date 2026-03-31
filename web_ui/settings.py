@@ -1,36 +1,56 @@
 import streamlit as st
-from utils.db_manager import db
+import pandas as pd
 
-def render_settings():
-    st.title("⚙️ إعدادات النظام والمؤسسة")
-    
-    # جلب البيانات الحالية من قاعدة البيانات (جدول settings)
-    current_settings = db.execute_query("SELECT * FROM settings LIMIT 1", fetch=True)
-    
-    if current_settings:
-        data = current_settings[0]
+def render_settings(conn):
+    st.markdown("""
+        <div style="text-align: right;">
+            <h1 style="color: #1e293b;">⚙️ إعدادات النظام والخامات</h1>
+            <p style="color: #64748b;">تحديث قوائم الأسعار، أنواع الخامات، ومعايير الضريبة السعودية.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    tabs = st.tabs(["🏗️ إدارة الخامات", "🏢 بيانات المؤسسة", "🔐 المستخدمين"])
+
+    # --- التبويب الأول: إدارة الخامات ---
+    with tabs[0]:
+        st.subheader("إضافة خامة / منتج جديد")
         
-        with st.form("settings_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                inst_name = st.text_input("اسم المؤسسة", value=data['inst_name'])
-                vat_no = st.text_input("الرقم الضريبي", value=data['vat_no'])
-                cr_no = st.text_input("السجل التجاري", value=data['cr_no'])
-            with col2:
-                address = st.text_area("العنوان الوطني", value=data['address'])
-                logo_url = st.text_input("رابط الشعار (URL)", value=data['logo_url'])
+        with st.form("add_material_form"):
+            c1, c2, c3 = st.columns(3)
+            cat = c1.selectbox("القسم:", ["حروف مضيئة", "استكرات وبنرات", "أكريليك وفوركس", "مطبوعات ورقية", "هدايا ودروع"])
+            m_name = c2.text_input("اسم الخامة (مثلاً: أكريليك 3 ملم كوري):")
+            m_unit = c3.selectbox("وحدة القياس:", ["متر طولي", "متر مربع", "حبة", "لوح", "ساعة قص"])
             
-            st.divider()
-            st.subheader("إعدادات الضرائب والأسعار")
-            vat_pc = st.number_input("نسبة الضريبة (%)", value=float(data['vat_percent']), step=0.1)
-            
-            if st.form_submit_button("حفظ التعديلات 💾"):
-                update_query = """
-                    UPDATE settings SET 
-                    inst_name=%s, vat_no=%s, cr_no=%s, address=%s, logo_url=%s, vat_percent=%s
-                    WHERE id=%s
-                """
-                db.execute_query(update_query, (inst_name, vat_no, cr_no, address, logo_url, vat_pc, data['id']))
-                st.success("✅ تم تحديث إعدادات المؤسسة بنجاح!")
-    else:
-        st.warning("⚠️ لم يتم العثور على جدول الإعدادات في قاعدة البيانات.")
+            c4, c5 = st.columns(2)
+            m_price = c4.number_input("السعر الافتراضي (ريال سعودي):", min_value=0.0)
+            submit = st.form_submit_button("إضافة الخامة للقائمة المسبقة ✅", width='stretch')
+
+            if submit:
+                if m_name:
+                    try:
+                        cursor = conn.cursor()
+                        # تأكد من وجود جدول اسمه materials في قاعدة بياناتك
+                        cursor.execute("""
+                            INSERT INTO materials (category, material_name, unit, price) 
+                            VALUES (%s, %s, %s, %s)
+                        """, (cat, m_name, m_unit, m_price))
+                        conn.commit()
+                        st.success(f"تم إضافة {m_name} بنجاح!")
+                    except Exception as e:
+                        st.error(f"خطأ في الحفظ: {e}")
+                else:
+                    st.warning("يرجى إدخال اسم الخامة.")
+
+        st.divider()
+        st.subheader("📋 قائمة الخامات الحالية")
+        try:
+            df_materials = pd.read_sql("SELECT * FROM materials", conn)
+            st.dataframe(df_materials, width='stretch', hide_index=True)
+        except:
+            st.info("لا توجد خامات مسجلة في قاعدة البيانات بعد.")
+
+    # --- التبويب الثاني: بيانات المؤسسة ---
+    with tabs[1]:
+        st.info("هنا يمكنك تعديل رقم السجل التجاري، الرقم الضريبي، وشعار نَسق الذي يظهر في الفواتير.")
+        st.text_input("الرقم الضريبي (VAT Number):", value="300XXXXXXXXXXXX")
+        st.button("حفظ الإعدادات الضريبية")
