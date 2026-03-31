@@ -1,6 +1,30 @@
 import streamlit as st
 import pandas as pd
 
+import streamlit as st
+import urllib.parse
+
+def render_collection_center(conn):
+    st.subheader("💳 مركز التحصيل والمتابعة")
+    
+    # جلب العملاء الذين عليهم مبالغ متبقية
+    query = "SELECT work_order_sn, client_name, phone, (total_with_vat - paid) as debt FROM orders WHERE (total_with_vat - paid) > 0"
+    cursor = conn.cursor()
+    cursor.execute(query)
+    debtors = cursor.fetchall()
+
+    for order_sn, name, phone, debt in debtors:
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col1:
+            st.write(f"👤 **{name}** (طلب: {order_sn})")
+        with col2:
+            st.error(f"المتبقي: {debt:,.2f} ر.س")
+        with col3:
+            # رسالة واتساب احترافية
+            msg = f"تحية طيبة من مؤسسة موديول ✨\nنود تذكيركم بالمبلغ المتبقي: {debt} ر.س\nرقم الطلب: {order_sn}\nشاكرين تعاونكم."
+            link = f"https://wa.me/{phone}?text={urllib.parse.quote(msg)}"
+            st.markdown(f"[📲 إرسال مطالبة]({link})")
+
 def render_finance(conn):
     st.title("💰 الإدارة المالية والتحصيل")
     
